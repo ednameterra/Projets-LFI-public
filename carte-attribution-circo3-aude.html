@@ -160,9 +160,10 @@ let layers = {};
 let geoLayer = null;
 
 const map = L.map("map", { zoomControl: true });
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 18,
-  attribution: "&copy; OpenStreetMap"
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  maxZoom: 19,
+  subdomains: "abcd",
+  attribution: "&copy; OpenStreetMap &copy; CARTO"
 }).addTo(map);
 
 fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geometry=contour")
