@@ -346,16 +346,19 @@ function addTileLayer() {
 }
 addTileLayer();
 
+map.createPane("veil");
+map.getPane("veil").style.zIndex = 350;
+["09", "11", "31", "34", "66", "81"].forEach(code =>
+  fetch("https://geo.api.gouv.fr/departements/" + code + "?format=geojson")
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d && d.type === "Feature") L.geoJSON(d, { pane: "veil", style: () => ({ stroke: false, fillColor: "#4C0297", fillOpacity: .45 }), interactive: false }).addTo(map); })
+    .catch(() => {})
+);
+
 fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geometry=contour")
   .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
   .then(gj => {
-    const circo = [], hors = [];
-    gj.features.forEach(f => (CIRCO_CODES.has(f.properties.code) ? circo : hors).push(f));
-    if (hors.length) L.geoJSON({ type: "FeatureCollection", features: hors }, {
-      style: () => ({ color: "#4C0297", weight: 1, fillColor: "#4C0297", fillOpacity: .45 }),
-      interactive: false
-    }).addTo(map);
-    gj.features = circo;
+    gj.features = gj.features.filter(f => CIRCO_CODES.has(f.properties.code));
     const expanded = [];
     gj.features.forEach(f => {
       const secs = SPLIT_GEOMS[f.properties.code];
