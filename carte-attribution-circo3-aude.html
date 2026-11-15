@@ -45,7 +45,7 @@
   }
   .brush-item:hover { border-color: #FFFCF4; }
   .brush-item.active { border-color: currentColor; background: #6d1cae; }
-  .brush-item .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+  .brush-item .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; cursor: pointer; }
   .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #d9c7f2; text-align: right; line-height: 1.3; }
   .brush-item .del {
     border: none; background: none; color: #c9a8ee; cursor: pointer;
@@ -214,7 +214,7 @@
     <ol>
       <li><b>Créez votre groupement</b> (champ « Nouveau groupement ») : il est sélectionné automatiquement.</li>
       <li><b>Cliquez sur les communes</b> pour les attribuer au groupement actif. Une commune déjà prise change automatiquement de main (pas de doublon).</li>
-      <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime.</li>
+      <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime ; cliquez sur la <b>pastille</b> de couleur d'un groupement pour la changer (couleurs FI, en évitant les doublons).</li>
       <li><b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza).</li>
       <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez.</li>
     </ol>
@@ -376,12 +376,20 @@ function renderGroupements() {
     div.style.color = g.color;
     const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
     div.innerHTML = `
-      <span class="swatch" style="background:${g.color}"></span>
+      <span class="swatch" style="background:${g.color}" title="Cliquer pour changer la couleur"></span>
       <span style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
       <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.</span>
       <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
       <button class="del rm" title="Supprimer le groupement">✕</button>`;
     div.onclick = () => { activeGroup = g.id; renderGroupements(); };
+    div.querySelector(".swatch").onclick = (e) => {
+      e.stopPropagation();
+      const used = new Set(groupements.filter(x => x.id !== g.id).map(x => x.color));
+      const pool = PALETTE.filter(c => !used.has(c));
+      const list = pool.length ? pool : PALETTE;
+      g.color = list[(list.indexOf(g.color) + 1) % list.length];
+      refresh();
+    };
     div.querySelector(".tgl").onclick = (e) => {
       e.stopPropagation();
       if (expandedGroups.has(g.id)) expandedGroups.delete(g.id); else expandedGroups.add(g.id);
