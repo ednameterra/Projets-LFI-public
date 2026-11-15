@@ -129,6 +129,19 @@
   .cl-del:hover { color: #ff4136; }
   .cl-empty { font-size: .75rem; color: #6a6f76; padding: 3px 4px; font-style: italic; }
 
+  .hatch-fill {
+    fill: url(#hatchPart) !important;
+    fill-opacity: .5 !important;
+    stroke: none !important;
+  }
+  .partiel-tip {
+    background: #14161aee; color: #ffd7d4;
+    border: 1px solid #ff4136; border-radius: 8px;
+    font-size: .72rem; font-weight: 600; padding: 3px 8px;
+    box-shadow: none;
+  }
+  .partiel-tip::before { display: none; }
+
   .leaflet-popup-content-wrapper { border-radius: 10px; }
   .popup-title { font-weight: 700; font-size: 0.95rem; }
   .popup-sub { font-size: 0.78rem; color: #666; margin-top: 2px; }
@@ -158,6 +171,7 @@
       <div class="hint">
         Sélectionnez un <b>groupement</b> ci-dessous, puis cliquez sur les communes de la carte pour les lui attribuer.
         Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
+        ⚠ Les communes <b>hachurées</b> (Carcassonne) sont partagées entre circonscriptions : seule leur partie « canton II Sud » relève de la 3ᵉ.
       </div>
 
       <div class="section-title">Rechercher une commune</div>
@@ -193,11 +207,17 @@
       <li><b>Créez votre groupement</b> (champ « Nouveau groupement ») : il est sélectionné automatiquement.</li>
       <li><b>Cliquez sur les communes</b> pour les attribuer au groupement actif. Une commune déjà prise change automatiquement de main (pas de doublon).</li>
       <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime.</li>
+      <li>Les communes <b>hachurées</b> sont partagées entre circonscriptions (Carcassonne) : seul leur canton « II Sud » est en 3ᵉ circo.</li>
       <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez.</li>
     </ol>
     <button id="helpClose">C'est parti</button>
   </div>
 </div>
+<svg width="0" height="0" style="position:absolute"><defs>
+<pattern id="hatchPart" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">
+  <line x1="0" y1="0" x2="0" y2="7" stroke="#14161a" stroke-width="2.5"/>
+</pattern>
+</defs></svg>
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -206,6 +226,7 @@ const CIRCO_CODES = new Set(["11002","11003","11004","11005","11007","11008","11
 
 const PALETTE = ["#ff4136","#2d7ff9","#18b26b","#f5a623","#9b59b6","#00b8d4","#e91e8c","#8bc34a","#ff7043","#795548","#607d8b","#cddc39"];
 const STORAGE_KEY = "lfi-circo3-aude-v1";
+const PARTIELLES = { "11069": "Carcassonne" };
 
 let groupements = [];
 let activeGroup = null;
@@ -256,8 +277,17 @@ function build(gj) {
       layer.on("click", () => onCommuneClick(code));
       layer.on("mouseover", () => layer.setStyle({ weight: 2.5, color: "#ffffff" }));
       layer.on("mouseout", () => layer.setStyle({ weight: 1, color: "#3a3d42" }));
+      if (PARTIELLES[code]) layer.bindTooltip("⚠ " + communeName(code) + " — partagée", { permanent: true, direction: "center", className: "partiel-tip" });
     }
   }).addTo(map);
+  const partFeatures = gj.features.filter(f => PARTIELLES[f.properties.code]);
+  if (partFeatures.length) {
+    L.geoJSON({ type: "FeatureCollection", features: partFeatures }, {
+      interactive: false,
+      className: "hatch-fill",
+      style: () => ({ stroke: false, fill: true, fillOpacity: 0.5 })
+    }).addTo(map);
+  }
   map.fitBounds(geoLayer.getBounds());
   document.getElementById("status").remove();
 }
@@ -268,7 +298,8 @@ function styleFor(code) {
     fillColor: g ? g.color : "#2a2d33",
     fillOpacity: g ? 0.75 : 0.35,
     color: "#3a3d42",
-    weight: 1
+    weight: 1,
+    dashArray: PARTIELLES[code] ? "5 4" : null
   };
 }
 
@@ -287,6 +318,7 @@ function onCommuneClick(code) {
     return;
   }
   assign(code, activeGroup);
+  if (PARTIELLES[code]) showToast("⚠ Carcassonne est partagée : seul le canton « II Sud » est en 3ᵉ circo.");
 }
 
 function assign(code, gid) {
@@ -372,7 +404,7 @@ function renderGroupements() {
       sorted.forEach(code => {
         const row = document.createElement("div");
         row.className = "cl-row";
-        row.innerHTML = `<span class="cl-name" title="Cliquer pour zoomer">${escapeHtml(communeName(code))}</span><button class="cl-del" title="Retirer cette commune">✕</button>`;
+        row.innerHTML = `<span class="cl-name" title="Cliquer pour zoomer">${escapeHtml(communeName(code))}${PARTIELLES[code] ? " ⚠" : ""}</span><button class="cl-del" title="Retirer cette commune">✕</button>`;
         row.querySelector(".cl-name").onclick = (e) => {
           e.stopPropagation();
           const l = layers[code];
