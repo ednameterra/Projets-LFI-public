@@ -982,7 +982,10 @@ function openActionForm(a) {
   agPos = a && a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null;
   if (agPos && agMapObj) setAgPos(agPos.lat, agPos.lng);
   else if (agMapObj) { document.getElementById("agMapHint").textContent = "Cliquez sur la mini-carte pour placer le lieu du rendez-vous."; }
-  if (agMapObj) setTimeout(() => { agMapObj.invalidateSize(); if (agPos) agMapObj.setView([agPos.lat, agPos.lng], 15); }, 60);
+  if (agMapObj) requestAnimationFrame(() => {
+    agMapObj.invalidateSize();
+    if (agPos) agMapObj.setView([agPos.lat, agPos.lng], 15);
+  });
   document.getElementById("agTitre").focus();
 }
 document.getElementById("addAction").onclick = () => openActionForm(null);
