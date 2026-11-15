@@ -195,6 +195,8 @@
   }
   #actionOverlay .row2 { display: flex; gap: 8px; }
   #actionOverlay .row2 > div { flex: 1; }
+  #agMap { height: 170px; border-radius: 8px; border: 1px solid #d9c7f2; }
+  .ag-maphint { font-size: .7rem; color: #666; margin-top: 3px; }
 
   .leaflet-popup-content-wrapper { border-radius: 10px; }
   .popup-title { font-weight: 700; font-size: 0.95rem; }
@@ -286,6 +288,9 @@
     </div>
     <label>Lieu</label>
     <input id="agLieu" type="text" maxlength="120" placeholder="Ex. Place de la République, Limoux">
+    <label>Position sur la carte (facultatif)</label>
+    <div id="agMap"></div>
+    <div id="agMapHint" class="ag-maphint">Cliquez sur la mini-carte pour placer le lieu du rendez-vous.</div>
     <label>Groupement</label>
     <select id="agGid"></select>
     <div class="row" style="margin-top:14px">
@@ -562,7 +567,7 @@ CIRCO_CODES.forEach(code => {
 });
 
 function encodeStateBinary() {
-  const bytes = [2];
+  const bytes = [3];
   const pushVarint = v => { while (v > 127) { bytes.push((v & 127) | 128); v >>>= 7; } bytes.push(v); };
   const gaGroups = [], customGroups = [];
   groupements.forEach(g => {
@@ -616,11 +621,16 @@ function encodeStateBinary() {
     lb.forEach(b => bytes.push(b));
     const gi = order.findIndex(g => g.id === a.gid);
     pushVarint(gi >= 0 ? gi + 1 : 0);
+    if (a.lat != null && a.lng != null) {
+      pushVarint(1);
+      pushVarint(Math.round((a.lat + 90) * 1e4));
+      pushVarint(Math.round((a.lng + 180) * 1e4));
+    } else pushVarint(0);
   });
   return new Uint8Array(bytes);
 }
 function decodeStateBinary(bytes) {
-  if (!bytes.length || (bytes[0] !== 1 && bytes[0] !== 2)) return null;
+  if (!bytes.length || (bytes[0] !== 1 && bytes[0] !== 2 && bytes[0] !== 3)) return null;
   const version = bytes[0];
   let p = 1;
   const readVarint = () => { let v = 0, s = 0, b; do { b = bytes[p++]; v += (b & 127) * Math.pow(2, s); s += 7; } while (b & 128); return v; };
@@ -665,7 +675,12 @@ function decodeStateBinary(bytes) {
       if (p + ll > bytes.length) return null;
       const lieu = new TextDecoder().decode(bytes.slice(p, p + ll)); p += ll;
       const gi = readVarint() - 1;
-      decActions.push({ titre, date, heure, lieu, gi });
+      let lat = null, lng = null;
+      if (version >= 3) {
+        const has = readVarint();
+        if (has) { lat = readVarint() / 1e4 - 90; lng = readVarint() / 1e4 - 180; }
+      }
+      decActions.push({ titre, date, heure, lieu, gi, lat, lng });
     }
   }
   return { groups: data, actions: decActions };
@@ -786,7 +801,7 @@ document.getElementById("fileInput").onchange = (e) => {
       activeGroup = null;
       if (Array.isArray(data.actions)) {
         actions = data.actions.filter(a => a && a.id && a.titre && a.date)
-          .map(a => ({ id: a.id, titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gid && groupements.some(g => g.id === a.gid) ? a.gid : null }));
+          .map(a => ({ id: a.id, titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gid && groupements.some(g => g.id === a.gid) ? a.gid : null, lat: a.lat ?? null, lng: a.lng ?? null }));
         saveActions();
         renderAgenda();
       }
@@ -877,7 +892,7 @@ function loadActions() {
   try {
     const a = JSON.parse(localStorage.getItem(AG_KEY));
     if (Array.isArray(a)) actions = a.filter(x => x && x.id && x.titre && x.date)
-      .map(x => ({ id: x.id, titre: x.titre, date: x.date, heure: x.heure || "", lieu: x.lieu || "", gid: x.gid || null }));
+      .map(x => ({ id: x.id, titre: x.titre, date: x.date, heure: x.heure || "", lieu: x.lieu || "", gid: x.gid || null, lat: x.lat ?? null, lng: x.lng ?? null }));
   } catch {}
 }
 function todayStr() {
@@ -894,7 +909,7 @@ function agRow(a, past) {
   const sub = g || a.lieu;
   return `<div class="ag-item${past ? " ag-past" : ""}">
     <div class="ag-top"><span class="ag-date">${escapeHtml(fmtDate(a.date))}${a.heure ? " · " + escapeHtml(a.heure) : ""}</span><span class="ag-title">${escapeHtml(a.titre)}</span>
-    <span class="ag-actions"><button class="ag-edit" data-id="${a.id}" title="Modifier">✎</button><button class="ag-del" data-id="${a.id}" title="Supprimer">✕</button></span></div>
+    <span class="ag-actions">${a.lat != null ? `<button class="ag-loc" data-id="${a.id}" title="Voir sur la carte">📍</button>` : ""}<button class="ag-edit" data-id="${a.id}" title="Modifier">✎</button><button class="ag-del" data-id="${a.id}" title="Supprimer">✕</button></span></div>
     ${sub ? `<div class="ag-sub">${g ? `<span class="ag-dot" style="background:${g.color}"></span>${escapeHtml(g.nom)}` : ""}${g && a.lieu ? " · " : ""}${a.lieu ? escapeHtml(a.lieu) : ""}</div>` : ""}
   </div>`;
 }
@@ -915,6 +930,16 @@ function renderAgenda() {
   const tp = document.getElementById("togglePast");
   if (tp) tp.onclick = () => { agendaShowPast = !agendaShowPast; renderAgenda(); };
   box.querySelectorAll(".ag-edit").forEach(b => { b.onclick = () => openActionForm(actions.find(a => a.id === b.dataset.id)); });
+  box.querySelectorAll(".ag-loc").forEach(b => {
+    b.onclick = () => {
+      const a = actions.find(x => x.id === b.dataset.id);
+      if (!a || a.lat == null) return;
+      map.setView([a.lat, a.lng], 15);
+      if (locMarker) map.removeLayer(locMarker);
+      locMarker = L.circleMarker([a.lat, a.lng], { radius: 9, color: "#4C0297", fillColor: "#4C0297", fillOpacity: .9, weight: 2 }).addTo(map)
+        .bindTooltip(a.titre, { direction: "top", offset: [0, -8] }).openTooltip();
+    };
+  });
   box.querySelectorAll(".ag-del").forEach(b => {
     b.onclick = () => {
       const a = actions.find(x => x.id === b.dataset.id);
@@ -928,6 +953,20 @@ function renderAgenda() {
   });
 }
 let editingAction = null;
+let agMapObj = null, agMarker = null, agPos = null, locMarker = null;
+function setAgPos(lat, lng) {
+  agPos = { lat: Math.round(lat * 1e5) / 1e5, lng: Math.round(lng * 1e5) / 1e5 };
+  if (!agMarker) agMarker = L.circleMarker([lat, lng], { radius: 8, color: "#4C0297", fillColor: "#4C0297", fillOpacity: .9, weight: 2 }).addTo(agMapObj);
+  else agMarker.setLatLng([lat, lng]);
+  document.getElementById("agMapHint").textContent = "Position enregistrée : " + agPos.lat + ", " + agPos.lng + " (cliquez à nouveau pour déplacer).";
+}
+function initAgMap() {
+  if (agMapObj || typeof L === "undefined") return;
+  agMapObj = L.map("agMap", { zoomControl: true });
+  L.tileLayer(TILE_SOURCES[0].url, { maxZoom: 19, attribution: TILE_SOURCES[0].attribution }).addTo(agMapObj);
+  agMapObj.setView([43.05, 2.2], 9);
+  agMapObj.on("click", e => setAgPos(e.latlng.lat, e.latlng.lng));
+}
 function openActionForm(a) {
   editingAction = a || null;
   document.getElementById("actionFormTitle").textContent = a ? "Modifier l'action" : "Nouvelle action";
@@ -939,6 +978,11 @@ function openActionForm(a) {
   document.getElementById("agLieu").value = a && a.lieu ? a.lieu : "";
   sel.value = a && a.gid && groupements.some(g => g.id === a.gid) ? a.gid : "";
   document.getElementById("actionOverlay").style.display = "flex";
+  initAgMap();
+  agPos = a && a.lat != null && a.lng != null ? { lat: a.lat, lng: a.lng } : null;
+  if (agPos && agMapObj) setAgPos(agPos.lat, agPos.lng);
+  else if (agMapObj) { document.getElementById("agMapHint").textContent = "Cliquez sur la mini-carte pour placer le lieu du rendez-vous."; }
+  if (agMapObj) setTimeout(() => { agMapObj.invalidateSize(); if (agPos) agMapObj.setView([agPos.lat, agPos.lng], 15); }, 60);
   document.getElementById("agTitre").focus();
 }
 document.getElementById("addAction").onclick = () => openActionForm(null);
@@ -958,10 +1002,11 @@ document.getElementById("agSave").onclick = () => {
   const heure = document.getElementById("agHeure").value;
   const lieu = document.getElementById("agLieu").value.trim();
   const gid = document.getElementById("agGid").value || null;
+  const pos = agPos ? { lat: agPos.lat, lng: agPos.lng } : { lat: null, lng: null };
   if (editingAction) {
-    Object.assign(editingAction, { titre, date, heure, lieu, gid });
+    Object.assign(editingAction, { titre, date, heure, lieu, gid, lat: pos.lat, lng: pos.lng });
   } else {
-    actions.push({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre, date, heure, lieu, gid });
+    actions.push({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre, date, heure, lieu, gid, lat: pos.lat, lng: pos.lng });
   }
   saveActions();
   document.getElementById("actionOverlay").style.display = "none";
@@ -1009,7 +1054,7 @@ mergeGAAP();
       if (dec && Array.isArray(dec.actions)) {
         actions = dec.actions
           .filter(a => a && a.titre && a.date)
-          .map(a => ({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gi >= 0 && a.gi < loaded.length ? loaded[a.gi].id : null }));
+          .map(a => ({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gi >= 0 && a.gi < loaded.length ? loaded[a.gi].id : null, lat: a.lat ?? null, lng: a.lng ?? null }));
         saveActions();
         renderAgenda();
       }
