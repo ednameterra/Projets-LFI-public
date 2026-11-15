@@ -58,6 +58,8 @@
   }
   .brush-item .tgl:hover { background: rgba(255,252,244,.12); }
 
+  #importGA { width: 100%; margin-top: 6px; }
+
   .row { display: flex; gap: 6px; margin-top: 8px; }
   input[type="text"].newg {
     flex: 1; padding: 7px 10px; font-size: 0.85rem;
@@ -191,6 +193,7 @@
         <input id="newGroup" class="newg" type="text" placeholder="Nouveau groupement…">
         <button id="addGroup">Ajouter</button>
       </div>
+      <button class="ghost" id="importGA">Ajouter les GA d'Action Populaire</button>
 
       <div class="section-title">Répartition</div>
       <div id="stats"></div>
@@ -489,6 +492,31 @@ document.getElementById("addGroup").onclick = () => {
   refresh();
 };
 document.getElementById("newGroup").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("addGroup").click(); });
+
+const GA_AP = [
+  { n: "Limoux Causes Communes", c: "11206" },
+  { n: "Groupe d'action Limoux et environs", c: "11206" },
+  { n: "Résistance - Limoux", c: "11206" },
+  { n: "Groupe d'action Castelnaudary", c: "11276" },
+  { n: "Groupe d'action de La Piège", c: "11291" },
+  { n: "Groupe action Saint Pierre Lagrasse", c: "11363" },
+  { n: "Groupe d'Action des Corbières occidentales", c: "11065" },
+  { n: "Sougraigne", c: "11381" }
+];
+document.getElementById("importGA").onclick = () => {
+  let added = 0, assigned = 0;
+  GA_AP.forEach(({ n, c }) => {
+    if (groupements.some(g => g.nom.toLowerCase() === n.toLowerCase())) return;
+    const color = PALETTE[groupements.length % PALETTE.length];
+    const g = { id: "g" + Date.now() + "-" + added, nom: n, color, communes: [] };
+    groupements.push(g);
+    added++;
+    if (!groupements.some(x => x !== g && x.communes.includes(c))) { g.communes.push(c); assigned++; }
+  });
+  if (!added) { showToast("Les GA d'Action Populaire sont déjà présents."); return; }
+  refresh();
+  showToast(`${added} GA d'Action Populaire ajoutés ; ${assigned} commune(s) pré-attribuée(s).`);
+};
 
 document.getElementById("search").addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
