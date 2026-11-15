@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attribution des territoires — 3ᵉ circonscription de l'Aude</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; font-family: "Segoe UI", system-ui, sans-serif; }
+
+  #app { display: flex; height: 100vh; }
+
+  #sidebar {
+    width: 340px; flex-shrink: 0;
+    background: #14161a; color: #e8e8e8;
+    display: flex; flex-direction: column;
+  }
+  #sidebar header { padding: 16px 18px 12px; border-bottom: 1px solid #2a2d33; }
+  #sidebar header h1 { font-size: 1.05rem; color: #ff4136; }
+  #sidebar header p { font-size: 0.75rem; color: #9aa0a6; margin-top: 3px; }
+
+  #sidebar .content { flex: 1; overflow-y: auto; padding: 12px 18px 18px; }
+  .section-title {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #8a8f98; margin: 16px 0 8px;
+  }
+  .section-title:first-child { margin-top: 4px; }
+
+  #search {
+    width: 100%; padding: 8px 11px; font-size: 0.88rem;
+    border-radius: 8px; border: 1px solid #33373d;
+    background: #1d2026; color: #e8e8e8; outline: none;
+  }
+  #search:focus { border-color: #ff4136; }
+
+  .brush { display: flex; flex-direction: column; gap: 5px; }
+  .brush-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; border-radius: 9px; cursor: pointer;
+    border: 1px solid #2a2d33; background: #1d2026; font-size: 0.88rem;
+  }
+  .brush-item:hover { border-color: #55595f; }
+  .brush-item.active { border-color: currentColor; background: #26292f; }
+  .brush-item .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
+  .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #9aa0a6; text-align: right; line-height: 1.3; }
+  .brush-item .del {
+    border: none; background: none; color: #6a6f76; cursor: pointer;
+    font-size: 0.95rem; padding: 2px 4px; border-radius: 5px; flex-shrink: 0;
+  }
+  .brush-item .del:hover { color: #ff4136; background: #2a2d33; }
+
+  .row { display: flex; gap: 6px; margin-top: 8px; }
+  input[type="text"].newg {
+    flex: 1; padding: 7px 10px; font-size: 0.85rem;
+    border-radius: 8px; border: 1px solid #33373d;
+    background: #1d2026; color: #e8e8e8; outline: none;
+  }
+  button {
+    padding: 7px 13px; font-size: 0.82rem; border: none; border-radius: 8px;
+    background: #ff4136; color: #fff; cursor: pointer; font-weight: 600;
+  }
+  button.ghost { background: #2a2d33; color: #c9cdd2; font-weight: 400; }
+  button.ghost:hover { background: #33373d; }
+  button:hover { filter: brightness(1.1); }
+
+  #stats { font-size: 0.78rem; color: #9aa0a6; line-height: 1.7; }
+  #stats b { color: #e8e8e8; }
+
+  .hint {
+    font-size: 0.75rem; color: #9aa0a6; background: #1d2026;
+    border: 1px solid #2a2d33; border-radius: 9px; padding: 9px 11px; line-height: 1.5;
+    margin-bottom: 6px;
+  }
+  .hint b { color: #ff4136; }
+
+  #map { flex: 1; }
+  #status {
+    position: absolute; z-index: 1000; top: 10px; left: 50%; transform: translateX(-50%);
+    background: #14161aee; color: #e8e8e8; padding: 7px 16px; border-radius: 20px;
+    font-size: 0.82rem; border: 1px solid #2a2d33; pointer-events: none;
+  }
+  .leaflet-container { background: #e8e4dc; }
+
+  #toast {
+    position: fixed; z-index: 2000; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: #ff4136; color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 0.85rem; font-weight: 600; opacity: 0; transition: opacity .25s;
+    pointer-events: none; max-width: 80%;
+  }
+  #toast.show { opacity: 1; }
+
+  .leaflet-popup-content-wrapper { border-radius: 10px; }
+  .popup-title { font-weight: 700; font-size: 0.95rem; }
+  .popup-sub { font-size: 0.78rem; color: #666; margin-top: 2px; }
+  .popup-actions { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .popup-actions button {
+    padding: 6px 10px; font-size: 0.78rem; text-align: left; border-radius: 7px;
+    background: #f1f1f1; color: #222;
+  }
+  .popup-actions button:hover { background: #e2e2e2; }
+  .popup-actions button.current { background: #222; color: #fff; cursor: default; }
+
+  @media (max-width: 700px) {
+    #app { flex-direction: column; }
+    #sidebar { width: 100%; height: 46%; order: 2; }
+    #map { height: 54%; order: 1; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="sidebar">
+    <header>
+      <h1>Attribution des territoires</h1>
+      <p>3ᵉ circonscription de l'Aude — 292 communes</p>
+    </header>
+    <div class="content">
+      <div class="hint">
+        Sélectionnez un <b>groupement</b> ci-dessous, puis cliquez sur les communes de la carte pour les lui attribuer.
+        Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
+      </div>
+
+      <div class="section-title">Rechercher une commune</div>
+      <input id="search" type="text" placeholder="Nom de la commune…">
+
+      <div class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></div>
+      <div id="groupements" class="brush"></div>
+      <div class="row">
+        <input id="newGroup" class="newg" type="text" placeholder="Nouveau groupement…">
+        <button id="addGroup">Ajouter</button>
+      </div>
+
+      <div class="section-title">Répartition</div>
+      <div id="stats"></div>
+
+      <div class="section-title">Sauvegarde</div>
+      <div class="row">
+        <button class="ghost" id="export">Exporter (JSON)</button>
+        <button class="ghost" id="import">Importer</button>
+        <button class="ghost" id="reset">Tout effacer</button>
+      </div>
+      <input id="fileInput" type="file" accept=".json" style="display:none">
+    </div>
+  </div>
+  <div id="map"><div id="status">Chargement des contours des communes…</div></div>
+</div>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const CIRCO_CODES = new Set(["11002","11003","11004","11005","11007","11008","11009","11010","11011","11015","11016","11017","11018","11019","11020","11021","11026","11028","11029","11030","11031","11032","11033","11034","11035","11036","11038","11039","11044","11045","11046","11047","11049","11051","11052","11053","11054","11055","11057","11058","11059","11060","11061","11062","11063","11065","11066","11069","11070","11072","11073","11074","11076","11078","11080","11082","11083","11084","11087","11089","11090","11091","11093","11094","11096","11100","11101","11103","11104","11105","11107","11108","11109","11112","11113","11114","11115","11117","11118","11119","11120","11121","11123","11127","11128","11129","11130","11131","11133","11134","11135","11136","11137","11138","11139","11141","11142","11147","11149","11150","11153","11155","11156","11158","11159","11160","11161","11162","11163","11165","11166","11167","11168","11169","11173","11175","11177","11178","11179","11181","11182","11183","11184","11185","11186","11187","11189","11191","11192","11193","11195","11196","11197","11199","11204","11206","11207","11208","11209","11211","11213","11214","11216","11218","11219","11224","11225","11226","11227","11228","11229","11230","11231","11234","11235","11236","11238","11239","11240","11242","11243","11244","11245","11246","11247","11249","11250","11251","11252","11253","11254","11259","11260","11263","11265","11268","11270","11271","11274","11275","11276","11277","11278","11281","11282","11283","11284","11287","11288","11289","11290","11291","11292","11293","11294","11299","11300","11302","11303","11304","11306","11308","11309","11310","11311","11312","11313","11314","11316","11317","11320","11321","11323","11325","11326","11327","11328","11331","11333","11334","11335","11336","11338","11339","11340","11341","11343","11344","11346","11347","11348","11350","11352","11354","11355","11356","11357","11358","11359","11361","11362","11363","11364","11365","11367","11371","11373","11374","11375","11376","11377","11378","11380","11381","11382","11383","11384","11385","11386","11387","11388","11389","11392","11394","11399","11400","11401","11402","11404","11406","11407","11408","11409","11412","11414","11415","11417","11418","11419","11420","11423","11424","11427","11428","11430","11432","11434","11435","11437","11438","11439","11440"]);
+
+const PALETTE = ["#ff4136","#2d7ff9","#18b26b","#f5a623","#9b59b6","#00b8d4","#e91e8c","#8bc34a","#ff7043","#795548","#607d8b","#cddc39"];
+const STORAGE_KEY = "lfi-circo3-aude-v1";
+
+let groupements = [];
+let activeGroup = null;
+let layers = {};
+let geoLayer = null;
+
+const map = L.map("map", { zoomControl: true });
+const TILE_SOURCES = [
+  { url: "https://tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", maxZoom: 19, attribution: "&copy; OpenStreetMap France" },
+  { url: "https://tile.openstreetmap.de/{z}/{x}/{y}.png", maxZoom: 18, attribution: "&copy; OpenStreetMap Deutschland" },
+  { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 19, attribution: "Tiles &copy; Esri" }
+];
+let tileIdx = 0, tileErrors = 0, tileLayer = null;
+function addTileLayer() {
+  const src = TILE_SOURCES[tileIdx];
+  tileLayer = L.tileLayer(src.url, { maxZoom: src.maxZoom, attribution: src.attribution });
+  tileLayer.on("tileerror", () => {
+    tileErrors++;
+    if (tileErrors >= 5 && tileIdx < TILE_SOURCES.length - 1) {
+      tileIdx++; tileErrors = 0;
+      map.removeLayer(tileLayer);
+      addTileLayer();
+    }
+  });
+  tileLayer.addTo(map);
+}
+addTileLayer();
+
+fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geometry=contour")
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(gj => {
+    gj.features = gj.features.filter(f => CIRCO_CODES.has(f.properties.code));
+    if (!gj.features.length) throw new Error("empty");
+    build(gj);
+  })
+  .catch(() => {
+    document.getElementById("status").textContent =
+      "Impossible de charger les contours (geo.api.gouv.fr). Vérifiez la connexion puis rechargez la page.";
+  });
+
+function build(gj) {
+  geoLayer = L.geoJSON(gj, {
+    style: f => styleFor(f.properties.code),
+    onEachFeature: (f, layer) => {
+      const code = f.properties.code;
+      layers[code] = layer;
+      layer.on("click", () => onCommuneClick(code));
+      layer.on("mouseover", () => layer.setStyle({ weight: 2.5, color: "#ffffff" }));
+      layer.on("mouseout", () => layer.setStyle({ weight: 1, color: "#3a3d42" }));
+    }
+  }).addTo(map);
+  map.fitBounds(geoLayer.getBounds());
+  document.getElementById("status").remove();
+}
+
+function styleFor(code) {
+  const g = groupements.find(g => g.communes.includes(code));
+  return {
+    fillColor: g ? g.color : "#2a2d33",
+    fillOpacity: g ? 0.75 : 0.35,
+    color: "#3a3d42",
+    weight: 1
+  };
+}
+
+function onCommuneClick(code) {
+  if (activeGroup === null) {
+    showToast("Sélectionnez d'abord un groupement dans le panneau de gauche.");
+    return;
+  }
+  if (activeGroup === "erase") {
+    unassign(code);
+    return;
+  }
+  const current = groupements.find(g => g.communes.includes(code));
+  if (current && current.id === activeGroup) {
+    unassign(code);
+    return;
+  }
+  assign(code, activeGroup);
+}
+
+function assign(code, gid) {
+  groupements.forEach(g => {
+    const i = g.communes.indexOf(code);
+    if (i !== -1 && g.id !== gid) {
+      g.communes.splice(i, 1);
+      showToast(`« ${communeName(code)} » retirée à ${g.nom} (pas de doublon).`);
+    }
+  });
+  const g = groupements.find(g => g.id === gid);
+  if (!g.communes.includes(code)) g.communes.push(code);
+  refresh();
+}
+
+function unassign(code) {
+  let removed = false;
+  groupements.forEach(g => {
+    const i = g.communes.indexOf(code);
+    if (i !== -1) { g.communes.splice(i, 1); removed = true; }
+  });
+  if (removed) refresh();
+}
+
+function refresh() {
+  if (geoLayer) geoLayer.eachLayer(l => l.setStyle(styleFor(l.feature.properties.code)));
+  renderGroupements();
+  renderStats();
+  save();
+}
+
+function renderGroupements() {
+  const box = document.getElementById("groupements");
+  box.innerHTML = "";
+  const erase = document.createElement("div");
+  erase.className = "brush-item" + (activeGroup === "erase" ? " active" : "");
+  erase.style.color = "#e8e8e8";
+  erase.innerHTML = `<span class="swatch" style="background:#2a2d33;border:1px solid #55595f"></span> Gomme (libérer une commune)`;
+  erase.onclick = () => { activeGroup = "erase"; renderGroupements(); };
+  box.appendChild(erase);
+
+  groupements.forEach(g => {
+    const div = document.createElement("div");
+    div.className = "brush-item" + (activeGroup === g.id ? " active" : "");
+    div.style.color = g.color;
+    const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
+    div.innerHTML = `
+      <span class="swatch" style="background:${g.color}"></span>
+      <span style="color:#e8e8e8;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
+      <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.</span>
+      <button class="del" title="Supprimer le groupement">✕</button>`;
+    div.onclick = () => { activeGroup = g.id; renderGroupements(); };
+    div.querySelector(".del").onclick = (e) => {
+      e.stopPropagation();
+      if (g.communes.length && !confirm(`Supprimer « ${g.nom} » ? Ses ${g.communes.length} communes redeviennent libres.`)) return;
+      groupements = groupements.filter(x => x.id !== g.id);
+      if (activeGroup === g.id) activeGroup = null;
+      refresh();
+    };
+    div.oncontextmenu = (e) => {
+      e.preventDefault();
+      const nom = prompt("Nouveau nom du groupement :", g.nom);
+      if (nom && nom.trim()) { g.nom = nom.trim(); refresh(); }
+    };
+    box.appendChild(div);
+  });
+  const mode = document.getElementById("brushMode");
+  const g = groupements.find(g => g.id === activeGroup);
+  mode.textContent = g ? `→ pinceau : ${g.nom}` : (activeGroup === "erase" ? "→ gomme" : "");
+}
+
+function renderStats() {
+  const total = CIRCO_CODES.size;
+  const popTotal = totalPop;
+  const assigned = groupements.reduce((s, g) => s + g.communes.length, 0);
+  const popAssigned = groupements.reduce((s, g) => s + g.communes.reduce((x, c) => x + (populationOf(c) || 0), 0), 0);
+  document.getElementById("stats").innerHTML =
+    `<b>${assigned}</b> / ${total} communes attribuées (${Math.round(100 * assigned / total)} %)<br>` +
+    `<b>${fmt(popAssigned)}</b> / ${fmt(popTotal)} habitants couverts` +
+    (assigned < total ? `<br><span style="color:#f5a623">${total - assigned} commune(s) encore libre(s)</span>` : `<br><span style="color:#18b26b">✓ Territoire entièrement couvert</span>`);
+}
+
+const COMMUNES_INFO = [{"code":"11002","nom":"Airoux","population":201},{"code":"11003","nom":"Ajac","population":196},{"code":"11004","nom":"Alaigne","population":327},{"code":"11005","nom":"Alairac","population":1395},{"code":"11007","nom":"Albières","population":117},{"code":"11008","nom":"Alet-les-Bains","population":379},{"code":"11009","nom":"Alzonne","population":1586},{"code":"11010","nom":"Antugnac","population":291},{"code":"11011","nom":"Aragon","population":487},{"code":"11015","nom":"Arques","population":248},{"code":"11016","nom":"Arquettes-en-Val","population":83},{"code":"11017","nom":"Artigues","population":72},{"code":"11018","nom":"Arzens","population":1174},{"code":"11019","nom":"Aunat","population":61},{"code":"11020","nom":"Auriac","population":33},{"code":"11021","nom":"Axat","population":479},{"code":"11026","nom":"Baraigne","population":163},{"code":"11028","nom":"Belcaire","population":365},{"code":"11029","nom":"Belcastel-et-Buc","population":60},{"code":"11030","nom":"Belflou","population":111},{"code":"11031","nom":"Belfort-sur-Rebenty","population":25},{"code":"11032","nom":"Bellegarde-du-Razès","population":251},{"code":"11033","nom":"Belpech","population":1343},{"code":"11034","nom":"Belvèze-du-Razès","population":884},{"code":"11035","nom":"Belvianes-et-Cavirac","population":270},{"code":"11036","nom":"Belvis","population":166},{"code":"11038","nom":"Bessède-de-Sault","population":63},{"code":"11039","nom":"La Bezole","population":44},{"code":"11044","nom":"Bouisse","population":104},{"code":"11045","nom":"Bouriège","population":151},{"code":"11046","nom":"Bourigeole","population":56},{"code":"11047","nom":"Le Bousquet","population":39},{"code":"11049","nom":"Bram","population":3233},{"code":"11051","nom":"Brézilhac","population":172},{"code":"11052","nom":"Brousses-et-Villaret","population":365},{"code":"11053","nom":"Brugairolles","population":308},{"code":"11054","nom":"Les Brunels","population":268},{"code":"11055","nom":"Bugarach","population":250},{"code":"11057","nom":"Cahuzac","population":33},{"code":"11058","nom":"Cailhau","population":247},{"code":"11059","nom":"Cailhavel","population":154},{"code":"11060","nom":"Cailla","population":49},{"code":"11061","nom":"Cambieure","population":327},{"code":"11062","nom":"Campagna-de-Sault","population":20},{"code":"11063","nom":"Campagne-sur-Aude","population":618},{"code":"11065","nom":"Camps-sur-l'Agly","population":66},{"code":"11066","nom":"Camurac","population":110},{"code":"11069","nom":"Carcassonne","population":46080},{"code":"11070","nom":"Carlipa","population":332},{"code":"11072","nom":"La Cassaigne","population":200},{"code":"11073","nom":"Cassaignes","population":61},{"code":"11074","nom":"Les Cassés","population":319},{"code":"11076","nom":"Castelnaudary","population":12151},{"code":"11078","nom":"Castelreng","population":207},{"code":"11080","nom":"Val de Lambronne","population":180},{"code":"11082","nom":"Caunette-sur-Lauquet","population":11},{"code":"11083","nom":"Caunettes-en-Val","population":56},{"code":"11084","nom":"Caux-et-Sauzens","population":1025},{"code":"11087","nom":"Cazalrenoux","population":105},{"code":"11089","nom":"Cenne-Monestiés","population":413},{"code":"11090","nom":"Cépie","population":598},{"code":"11091","nom":"Chalabre","population":1084},{"code":"11093","nom":"Le Clat","population":28},{"code":"11094","nom":"Clermont-sur-Lauquet","population":29},{"code":"11096","nom":"Comus","population":33},{"code":"11100","nom":"Corbières","population":38},{"code":"11101","nom":"Coudons","population":54},{"code":"11103","nom":"Couiza","population":1132},{"code":"11104","nom":"Counozouls","population":57},{"code":"11105","nom":"Cournanel","population":659},{"code":"11107","nom":"Courtauly","population":73},{"code":"11108","nom":"La Courtète","population":50},{"code":"11109","nom":"Coustaussa","population":50},{"code":"11112","nom":"Cubières-sur-Cinoble","population":83},{"code":"11113","nom":"Cucugnan","population":125},{"code":"11114","nom":"Cumiès","population":44},{"code":"11115","nom":"Cuxac-Cabardès","population":947},{"code":"11117","nom":"Davejean","population":163},{"code":"11118","nom":"Dernacueillette","population":43},{"code":"11119","nom":"La Digne-d'Amont","population":286},{"code":"11120","nom":"La Digne-d'Aval","population":522},{"code":"11121","nom":"Donazac","population":110},{"code":"11123","nom":"Duilhac-sous-Peyrepertuse","population":140},{"code":"11127","nom":"Escouloubre","population":71},{"code":"11128","nom":"Escueillens-et-Saint-Just-de-Bélengard","population":160},{"code":"11129","nom":"Espéraza","population":1774},{"code":"11130","nom":"Espezel","population":238},{"code":"11131","nom":"Val-du-Faby","population":580},{"code":"11133","nom":"Fajac-en-Val","population":54},{"code":"11134","nom":"Fajac-la-Relenque","population":48},{"code":"11135","nom":"La Fajolle","population":13},{"code":"11136","nom":"Fanjeaux","population":885},{"code":"11137","nom":"Félines-Termenès","population":130},{"code":"11138","nom":"Fendeille","population":658},{"code":"11139","nom":"Fenouillet-du-Razès","population":78},{"code":"11141","nom":"Ferran","population":125},{"code":"11142","nom":"Festes-et-Saint-André","population":185},{"code":"11147","nom":"Fontanès-de-Sault","population":6},{"code":"11149","nom":"Fonters-du-Razès","population":71},{"code":"11150","nom":"Fontiers-Cabardès","population":476},{"code":"11153","nom":"La Force","population":264},{"code":"11155","nom":"Fourtou","population":77},{"code":"11156","nom":"Fraisse-Cabardès","population":104},{"code":"11158","nom":"Gaja-et-Villedieu","population":306},{"code":"11159","nom":"Gaja-la-Selve","population":134},{"code":"11160","nom":"Galinagues","population":29},{"code":"11161","nom":"Gardie","population":128},{"code":"11162","nom":"Generville","population":48},{"code":"11163","nom":"Gincla","population":46},{"code":"11165","nom":"Ginoles","population":296},{"code":"11166","nom":"Gourvieille","population":68},{"code":"11167","nom":"Gramazie","population":130},{"code":"11168","nom":"Granès","population":118},{"code":"11169","nom":"Greffeil","population":100},{"code":"11173","nom":"Hounoux","population":135},{"code":"11175","nom":"Issel","population":483},{"code":"11177","nom":"Joucou","population":30},{"code":"11178","nom":"Labastide-d'Anjou","population":1255},{"code":"11179","nom":"Labastide-en-Val","population":88},{"code":"11181","nom":"Labécède-Lauragais","population":420},{"code":"11182","nom":"Lacombe","population":188},{"code":"11183","nom":"Ladern-sur-Lauquet","population":248},{"code":"11184","nom":"Lafage","population":90},{"code":"11185","nom":"Lagrasse","population":554},{"code":"11186","nom":"Lairière","population":52},{"code":"11187","nom":"Lanet","population":57},{"code":"11189","nom":"Laprade","population":122},{"code":"11191","nom":"Laroque-de-Fa","population":138},{"code":"11192","nom":"Lasbordes","population":846},{"code":"11193","nom":"Lasserre-de-Prouille","population":292},{"code":"11195","nom":"Laurabuc","population":431},{"code":"11196","nom":"Laurac","population":182},{"code":"11197","nom":"Lauraguel","population":622},{"code":"11199","nom":"Lavalette","population":1612},{"code":"11204","nom":"Lignairolles","population":33},{"code":"11206","nom":"Limoux","population":10532},{"code":"11207","nom":"Loupia","population":259},{"code":"11208","nom":"La Louvière-Lauragais","population":80},{"code":"11209","nom":"Luc-sur-Aude","population":257},{"code":"11211","nom":"Magrie","population":547},{"code":"11213","nom":"Maisons","population":59},{"code":"11214","nom":"Malras","population":444},{"code":"11216","nom":"Malviès","population":361},{"code":"11218","nom":"Marquein","population":78},{"code":"11219","nom":"Marsa","population":24},{"code":"11224","nom":"Massac","population":30},{"code":"11225","nom":"Mas-Saintes-Puelles","population":923},{"code":"11226","nom":"Mayreville","population":86},{"code":"11227","nom":"Mayronnes","population":42},{"code":"11228","nom":"Mazerolles-du-Razès","population":157},{"code":"11229","nom":"Mazuby","population":21},{"code":"11230","nom":"Mérial","population":28},{"code":"11231","nom":"Mézerville","population":96},{"code":"11234","nom":"Mireval-Lauragais","population":193},{"code":"11235","nom":"Missègre","population":72},{"code":"11236","nom":"Molandier","population":252},{"code":"11238","nom":"Molleville","population":128},{"code":"11239","nom":"Montauriol","population":85},{"code":"11240","nom":"Montazels","population":528},{"code":"11242","nom":"Montclar","population":178},{"code":"11243","nom":"Montferrand","population":622},{"code":"11244","nom":"Montfort-sur-Boulzane","population":87},{"code":"11245","nom":"Montgaillard","population":38},{"code":"11246","nom":"Montgradail","population":50},{"code":"11247","nom":"Monthaut","population":37},{"code":"11249","nom":"Montjardin","population":93},{"code":"11250","nom":"Montjoi","population":43},{"code":"11251","nom":"Val-de-Dagne","population":731},{"code":"11252","nom":"Montmaur","population":356},{"code":"11253","nom":"Montolieu","population":829},{"code":"11254","nom":"Montréal","population":2136},{"code":"11259","nom":"Moussoulens","population":956},{"code":"11260","nom":"Mouthoumet","population":116},{"code":"11263","nom":"Nébias","population":262},{"code":"11265","nom":"Niort-de-Sault","population":34},{"code":"11268","nom":"Orsans","population":87},{"code":"11270","nom":"Padern","population":139},{"code":"11271","nom":"Palairac","population":33},{"code":"11274","nom":"Pauligne","population":357},{"code":"11275","nom":"Payra-sur-l'Hers","population":210},{"code":"11276","nom":"Paziols","population":526},{"code":"11277","nom":"Pécharic-et-le-Py","population":30},{"code":"11278","nom":"Pech-Luna","population":76},{"code":"11281","nom":"Pexiora","population":1266},{"code":"11282","nom":"Peyrefitte-du-Razès","population":54},{"code":"11283","nom":"Peyrefitte-sur-l'Hers","population":75},{"code":"11284","nom":"Peyrens","population":454},{"code":"11287","nom":"Peyrolles","population":91},{"code":"11288","nom":"Pezens","population":1611},{"code":"11289","nom":"Pieusse","population":970},{"code":"11290","nom":"Plaigne","population":119},{"code":"11291","nom":"Plavilla","population":146},{"code":"11292","nom":"La Pomarède","population":188},{"code":"11293","nom":"Pomas","population":1017},{"code":"11294","nom":"Pomy","population":51},{"code":"11299","nom":"Preixan","population":637},{"code":"11300","nom":"Puginier","population":153},{"code":"11302","nom":"Puilaurens","population":277},{"code":"11303","nom":"Puivert","population":491},{"code":"11304","nom":"Quillan","population":2978},{"code":"11306","nom":"Quirbajou","population":49},{"code":"11308","nom":"Raissac-sur-Lampy","population":454},{"code":"11309","nom":"Rennes-le-Château","population":89},{"code":"11310","nom":"Rennes-les-Bains","population":238},{"code":"11311","nom":"Ribaute","population":262},{"code":"11312","nom":"Ribouisse","population":97},{"code":"11313","nom":"Ricaud","population":331},{"code":"11314","nom":"Rieux-en-Val","population":84},{"code":"11316","nom":"Rivel","population":219},{"code":"11317","nom":"Rodome","population":96},{"code":"11320","nom":"Roquefeuil","population":283},{"code":"11321","nom":"Roquefort-de-Sault","population":85},{"code":"11323","nom":"Roquetaillade-et-Conilhac","population":265},{"code":"11325","nom":"Rouffiac-d'Aude","population":514},{"code":"11326","nom":"Rouffiac-des-Corbières","population":75},{"code":"11327","nom":"Roullens","population":588},{"code":"11328","nom":"Routier","population":231},{"code":"11331","nom":"Saint-Amans","population":63},{"code":"11333","nom":"Saint-Benoît","population":109},{"code":"11334","nom":"Sainte-Camelle","population":127},{"code":"11335","nom":"Sainte-Colombe-sur-Guette","population":38},{"code":"11336","nom":"Sainte-Colombe-sur-l'Hers","population":441},{"code":"11338","nom":"Saint-Couat-du-Razès","population":46},{"code":"11339","nom":"Saint-Denis","population":523},{"code":"11340","nom":"Sainte-Eulalie","population":595},{"code":"11341","nom":"Saint-Ferriol","population":118},{"code":"11343","nom":"Saint-Gaudéric","population":108},{"code":"11344","nom":"Saint-Hilaire","population":712},{"code":"11346","nom":"Saint-Jean-de-Paracol","population":139},{"code":"11347","nom":"Saint-Julia-de-Bec","population":98},{"code":"11348","nom":"Saint-Julien-de-Briola","population":79},{"code":"11350","nom":"Saint-Just-et-le-Bézu","population":50},{"code":"11352","nom":"Saint-Louis-et-Parahou","population":55},{"code":"11354","nom":"Saint-Martin-des-Puits","population":30},{"code":"11355","nom":"Saint-Martin-de-Villereglan","population":403},{"code":"11356","nom":"Saint-Martin-Lalande","population":1107},{"code":"11357","nom":"Saint-Martin-le-Vieil","population":211},{"code":"11358","nom":"Saint-Martin-Lys","population":23},{"code":"11359","nom":"Saint-Michel-de-Lanès","population":484},{"code":"11361","nom":"Saint-Papoul","population":835},{"code":"11362","nom":"Saint-Paulet","population":205},{"code":"11363","nom":"Saint-Pierre-des-Champs","population":213},{"code":"11364","nom":"Saint-Polycarpe","population":169},{"code":"11365","nom":"Saint-Sernin","population":38},{"code":"11367","nom":"Saissac","population":904},{"code":"11371","nom":"Salles-sur-l'Hers","population":770},{"code":"11373","nom":"Salvezines","population":70},{"code":"11374","nom":"Salza","population":29},{"code":"11375","nom":"Seignalens","population":30},{"code":"11376","nom":"La Serpent","population":92},{"code":"11377","nom":"Serres","population":89},{"code":"11378","nom":"Serviès-en-Val","population":221},{"code":"11380","nom":"Sonnac-sur-l'Hers","population":137},{"code":"11381","nom":"Sougraigne","population":125},{"code":"11382","nom":"Souilhanels","population":356},{"code":"11383","nom":"Souilhe","population":354},{"code":"11384","nom":"Soulatgé","population":126},{"code":"11385","nom":"Soupex","population":243},{"code":"11386","nom":"Talairan","population":440},{"code":"11387","nom":"Taurize","population":108},{"code":"11388","nom":"Termes","population":48},{"code":"11389","nom":"Terroles","population":14},{"code":"11392","nom":"Tournissan","population":292},{"code":"11394","nom":"Tourreilles","population":128},{"code":"11399","nom":"Tréville","population":110},{"code":"11400","nom":"Tréziers","population":98},{"code":"11401","nom":"Tuchan","population":791},{"code":"11402","nom":"Valmigère","population":28},{"code":"11404","nom":"Ventenac-Cabardès","population":962},{"code":"11406","nom":"Véraza","population":35},{"code":"11407","nom":"Verdun-en-Lauragais","population":290},{"code":"11408","nom":"Verzeille","population":456},{"code":"11409","nom":"Vignevieille","population":107},{"code":"11412","nom":"Villardebelle","population":66},{"code":"11414","nom":"Villar-en-Val","population":23},{"code":"11415","nom":"Villar-Saint-Anselme","population":113},{"code":"11417","nom":"Villarzel-du-Razès","population":100},{"code":"11418","nom":"Villasavary","population":1220},{"code":"11419","nom":"Villautou","population":68},{"code":"11420","nom":"Villebazy","population":140},{"code":"11423","nom":"Villefloure","population":156},{"code":"11424","nom":"Villefort","population":88},{"code":"11427","nom":"Villelongue-d'Aude","population":321},{"code":"11428","nom":"Villemagne","population":236},{"code":"11430","nom":"Villeneuve-la-Comptal","population":1448},{"code":"11432","nom":"Villeneuve-lès-Montréal","population":330},{"code":"11434","nom":"Villepinte","population":1243},{"code":"11435","nom":"Villerouge-Termenès","population":165},{"code":"11437","nom":"Villesèquelande","population":882},{"code":"11438","nom":"Villesiscle","population":362},{"code":"11439","nom":"Villespy","population":419},{"code":"11440","nom":"Villetritouls","population":34}];
+const popByCode = {};
+COMMUNES_INFO.forEach(c => { popByCode[c.code] = c.population; });
+let totalPop = 0;
+const names = {};
+COMMUNES_INFO.forEach(c => { names[c.code] = c.nom; totalPop += c.population || 0; });
+
+function communeName(code) { return names[code] || code; }
+function populationOf(code) {
+  return popByCode[code] || null;
+}
+
+function fmt(n) { return n.toLocaleString("fr-FR"); }
+function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+document.getElementById("addGroup").onclick = () => {
+  const input = document.getElementById("newGroup");
+  const nom = input.value.trim();
+  if (!nom) return;
+  const color = PALETTE[groupements.length % PALETTE.length];
+  groupements.push({ id: "g" + Date.now(), nom, color, communes: [] });
+  input.value = "";
+  activeGroup = groupements[groupements.length - 1].id;
+  refresh();
+};
+document.getElementById("newGroup").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("addGroup").click(); });
+
+document.getElementById("search").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return;
+  const code = Object.keys(names).find(c => names[c].toLowerCase().includes(q));
+  if (code && geoLayer) {
+    const l = layers[code];
+    map.fitBounds(l.getBounds(), { maxZoom: 11 });
+    l.fire("mouseover");
+    setTimeout(() => l.fire("mouseout"), 1500);
+  } else showToast("Aucune commune trouvée.");
+});
+
+document.getElementById("export").onclick = () => {
+  const data = { version: 1, date: new Date().toISOString(), groupements };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "attribution-territoires-circo3-aude.json";
+  a.click();
+};
+
+document.getElementById("import").onclick = () => document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.groupements)) throw new Error();
+      const valid = CIRCO_CODES;
+      groupements = data.groupements.filter(g => g.id && g.nom && Array.isArray(g.communes));
+      groupements.forEach(g => { g.communes = [...new Set(g.communes)].filter(c => valid.has(c)); });
+      activeGroup = null;
+      refresh();
+      showToast("Import réussi.");
+    } catch { showToast("Fichier invalide."); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+};
+
+document.getElementById("reset").onclick = () => {
+  if (!confirm("Effacer toutes les attributions et tous les groupements ?")) return;
+  groupements = [];
+  activeGroup = null;
+  refresh();
+};
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ groupements, activeGroup })); } catch {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (d && Array.isArray(d.groupements)) {
+      groupements = d.groupements;
+      activeGroup = d.activeGroup || null;
+    }
+  } catch {}
+}
+
+load();
+renderGroupements();
+</script>
+</body>
+</html>
