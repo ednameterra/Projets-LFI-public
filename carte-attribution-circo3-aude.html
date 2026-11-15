@@ -646,12 +646,44 @@ function load() {
   } catch {}
 }
 
+function escName(s) { return s.replace(/%/g, "%25").replace(/[~:;,]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase()); }
+function unescName(s) { return s.replace(/%([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))); }
+function b64uEncode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64uDecode(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  return new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
+}
+function encodeState() {
+  return groupements.map(g => {
+    const i = PALETTE.indexOf(g.color);
+    return escName(g.nom) + (i > 0 ? "~" + i : "") + ":" + g.communes.map(c => c.slice(2)).join(",");
+  }).join(";");
+}
+function decodeState(txt) {
+  return txt.split(";").filter(Boolean).map(part => {
+    const ci = part.lastIndexOf(":");
+    const head = ci >= 0 ? part.slice(0, ci) : part;
+    const codes = ci >= 0 ? part.slice(ci + 1) : "";
+    const ti = head.indexOf("~");
+    return {
+      n: unescName(ti >= 0 ? head.slice(0, ti) : head),
+      i: ti >= 0 ? (parseInt(head.slice(ti + 1), 10) || 0) : 0,
+      m: codes ? codes.split(",").map(c => "11" + c) : []
+    };
+  });
+}
+
 document.getElementById("share").onclick = () => {
   if (!groupements.length) { showToast("Rien à partager : attribuez d'abord des communes."); return; }
-  const compact = groupements.map(g => ({ n: g.nom, i: PALETTE.indexOf(g.color), m: g.communes }));
-  const payload = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
-  const base = (location.origin && location.origin !== "null" ? location.origin : "") + location.pathname;
-  const url = base + "#d=" + payload;
+  const payload = b64uEncode(encodeState());
+  const u = new URL(".", location.href);
+  const base = (location.origin && location.origin !== "null" ? u.origin + u.pathname : "");
+  const url = base + "#z=" + payload;
   const finish = () => showToast("Lien copié ! Collez-le dans un message pour partager cet état de la carte.");
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(finish, () => prompt("Copiez ce lien :", url));
@@ -667,10 +699,11 @@ document.getElementById("helpClose").onclick = () => {
 
 load();
 (function loadFromHash() {
-  const m = location.hash.match(/^#d=(.+)$/);
-  if (!m) return;
+  const mz = location.hash.match(/^#z=(.+)$/);
+  const md = location.hash.match(/^#d=(.+)$/);
+  if (!mz && !md) return;
   try {
-    const data = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    const data = mz ? decodeState(b64uDecode(mz[1])) : JSON.parse(decodeURIComponent(escape(atob(md[1]))));
     if (!Array.isArray(data)) return;
     const loaded = data
       .filter(g => g && typeof g.n === "string" && Array.isArray(g.m))

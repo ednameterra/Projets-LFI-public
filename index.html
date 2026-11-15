@@ -2,10 +2,727 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=carte-attribution-circo3-aude.html">
-<title>Carte — 3ᵉ circonscription de l'Aude</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attribution des territoires — 3ᵉ circonscription de l'Aude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;900&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; font-family: "Public Sans", system-ui, sans-serif; }
+
+  #app { display: flex; height: 100vh; }
+
+  #sidebar {
+    width: 340px; flex-shrink: 0;
+    background: #4C0297; color: #FFFCF4;
+    display: flex; flex-direction: column;
+  }
+  #sidebar header { padding: 16px 18px 12px; border-bottom: 1px solid rgba(255,252,244,.28); }
+  #sidebar header h1 { font-size: 1.05rem; font-weight: 900; color: #FFFCF4; text-transform: uppercase; letter-spacing: .02em; }
+  #sidebar header p { font-size: 0.75rem; color: #d9c7f2; margin-top: 3px; }
+
+  #sidebar .content { flex: 1; overflow-y: auto; padding: 12px 18px 18px; }
+  .section-title {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: #c9a8ee; margin: 16px 0 8px;
+  }
+  .section-title:first-child { margin-top: 4px; }
+
+  #search {
+    width: 100%; padding: 8px 11px; font-size: 0.88rem;
+    border-radius: 8px; border: 1px solid #7b13d6;
+    background: #FFFCF4; color: #212320; outline: none;
+  }
+  #search:focus { border-color: #f9c900; }
+
+  .brush { display: flex; flex-direction: column; gap: 5px; }
+  .brush-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; border-radius: 9px; cursor: pointer;
+    border: 1px solid #8a4fd0; background: #5d0b77; font-size: 0.88rem;
+  }
+  .brush-item:hover { border-color: #FFFCF4; }
+  .brush-item.active { border-color: currentColor; background: #6d1cae; }
+  .brush-item .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; cursor: pointer; }
+  .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #d9c7f2; text-align: right; line-height: 1.3; }
+  .brush-item .del {
+    border: none; background: none; color: #c9a8ee; cursor: pointer;
+    font-size: 0.95rem; padding: 2px 4px; border-radius: 5px; flex-shrink: 0;
+  }
+  .brush-item .del:hover { color: #f9c900; background: #4C0297; }
+  .brush-item .tgl {
+    border: 1px solid rgba(255,252,244,.4); background: transparent; color: #FFFCF4;
+    font-size: .7rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; flex-shrink: 0;
+  }
+  .brush-item .tgl:hover { background: rgba(255,252,244,.12); }
+
+  #importGA { width: 100%; margin-top: 6px; }
+
+  .row { display: flex; gap: 6px; margin-top: 8px; }
+  input[type="text"].newg {
+    flex: 1; padding: 7px 10px; font-size: 0.85rem;
+    border-radius: 8px; border: 1px solid #7b13d6;
+    background: #FFFCF4; color: #212320; outline: none;
+  }
+  button {
+    padding: 7px 13px; font-size: 0.82rem; border: none; border-radius: 8px;
+    background: #D1271C; color: #fff; cursor: pointer; font-weight: 700;
+  }
+  button.ghost { background: transparent; color: #FFFCF4; font-weight: 400; border: 1px solid rgba(255,252,244,.5); }
+  button.ghost:hover { background: rgba(255,252,244,.12); }
+  button:hover { filter: brightness(1.1); }
+
+  #stats { font-size: 0.78rem; color: #d9c7f2; line-height: 1.7; }
+  #stats b { color: #FFFCF4; }
+
+  .hint {
+    font-size: 0.75rem; color: #f2e6fd; background: #5d0b77;
+    border: 1px solid #8a4fd0; border-radius: 9px; padding: 9px 11px; line-height: 1.5;
+    margin-bottom: 6px;
+  }
+  .hint b { color: #f9c900; }
+
+  #map { flex: 1; }
+  #status {
+    position: absolute; z-index: 1000; top: 10px; left: 50%; transform: translateX(-50%);
+    background: #4C0297ee; color: #FFFCF4; padding: 7px 16px; border-radius: 20px;
+    font-size: 0.82rem; border: 1px solid #7b13d6; pointer-events: none;
+  }
+  .leaflet-container { background: #FFFCF4; }
+
+  #hoverInfo {
+    position: absolute; z-index: 1000; bottom: 14px; left: 14px;
+    background: #FFFCF4f5; color: #212320; border: 1px solid #4C0297;
+    border-radius: 10px; padding: 8px 14px; font-size: 0.9rem;
+    pointer-events: none; display: none; box-shadow: 0 2px 10px #21232033;
+    max-width: 280px; line-height: 1.35;
+  }
+  #hoverInfo .hi-name { font-weight: 700; }
+  #hoverInfo .hi-sub { font-size: 0.8rem; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+  #hoverInfo .hi-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; border: 1px solid #21232055; }
+
+  #toast {
+    position: fixed; z-index: 2000; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: #D1271C; color: #fff; padding: 10px 18px; border-radius: 10px;
+    font-size: 0.85rem; font-weight: 600; opacity: 0; transition: opacity .25s;
+    pointer-events: none; max-width: 80%;
+  }
+  #toast.show { opacity: 1; }
+
+  #helpBtn {
+    position: fixed; z-index: 2500; bottom: 22px; right: 22px;
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid #7b13d6; background: #4C0297; color: #FFFCF4;
+    font-size: 1rem; cursor: pointer;
+  }
+  #helpBtn:hover { background: #5d0b77; }
+
+  #helpOverlay {
+    position: fixed; inset: 0; z-index: 3000; background: rgba(33,35,32,.7);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #helpOverlay .card {
+    background: #FFFCF4; color: #212320; border: 1px solid #4C0297;
+    border-radius: 14px; max-width: 440px; width: 90%; padding: 22px 24px;
+  }
+  #helpOverlay h2 { font-size: 1rem; color: #D1271C; margin-bottom: 10px; }
+  #helpOverlay ol { margin: 0 0 14px 18px; font-size: .88rem; line-height: 1.7; color: #3d3f3c; }
+  #helpOverlay ol b { color: #212320; }
+
+  .commune-list {
+    border: 1px solid #d9c7f2; border-radius: 9px; background: #faf6ff;
+    padding: 4px 6px; display: flex; flex-direction: column; gap: 1px;
+    max-height: 180px; overflow-y: auto;
+  }
+  .cl-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .78rem; color: #3d3f3c; padding: 3px 4px; border-radius: 6px;
+  }
+  .cl-row:hover { background: #f1e8fb; }
+  .cl-name { cursor: pointer; flex: 1; }
+  .cl-name:hover { color: #4C0297; text-decoration: underline; }
+  .cl-del {
+    border: none; background: none; color: #9a9b98; cursor: pointer;
+    font-size: .75rem; padding: 1px 4px; border-radius: 4px; flex-shrink: 0;
+  }
+  .cl-del:hover { color: #D1271C; }
+  .cl-empty { font-size: .75rem; color: #9a9b98; padding: 3px 4px; font-style: italic; }
+
+  .hatch-fill {
+    fill: url(#hatchPart) !important;
+    fill-opacity: .5 !important;
+    stroke: none !important;
+  }
+  .partiel-tip {
+    background: #4C0297f0; color: #ffe9e7;
+    border: 1px solid #D1271C; border-radius: 8px;
+    font-size: .72rem; font-weight: 600; padding: 3px 8px;
+    box-shadow: none;
+  }
+  .partiel-tip::before { display: none; }
+
+  .leaflet-popup-content-wrapper { border-radius: 10px; }
+  .popup-title { font-weight: 700; font-size: 0.95rem; }
+  .popup-sub { font-size: 0.78rem; color: #666; margin-top: 2px; }
+  .popup-actions { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
+  .popup-actions button {
+    padding: 6px 10px; font-size: 0.78rem; text-align: left; border-radius: 7px;
+    background: #FFFCF4; color: #212320;
+  }
+  .popup-actions button:hover { background: #f1e8fb; }
+  .popup-actions button.current { background: #4C0297; color: #fff; cursor: default; }
+
+  @media (max-width: 700px) {
+    #app { flex-direction: column; }
+    #sidebar { width: 100%; height: 46%; order: 2; }
+    #map { height: 54%; order: 1; }
+  }
+</style>
 </head>
 <body>
-<p>Ouvrez la <a href="carte-attribution-circo3-aude.html">carte d'attribution des territoires — 3ᵉ circonscription de l'Aude</a>.</p>
+<div id="app">
+  <div id="sidebar">
+    <header>
+      <h1>Attribution des territoires</h1>
+      <p>3ᵉ circonscription de l'Aude — 292 communes</p>
+    </header>
+    <div class="content">
+      <div class="hint">
+        Sélectionnez un <b>groupement</b> ci-dessous, puis cliquez sur les communes de la carte pour les lui attribuer.
+        Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
+        ⚠ <b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza). <b>Limoux</b> est découpée en 3 secteurs, un par GA limousois.
+      </div>
+
+      <div class="section-title">Rechercher une commune</div>
+      <input id="search" type="text" placeholder="Nom de la commune…">
+
+      <div class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></div>
+      <div id="groupements" class="brush"></div>
+      <div class="row">
+        <input id="newGroup" class="newg" type="text" placeholder="Nouveau groupement…">
+        <button id="addGroup">Ajouter</button>
+      </div>
+      <button class="ghost" id="importGA">Ajouter les GA d'Action Populaire</button>
+
+      <div class="section-title">Répartition</div>
+      <div id="stats"></div>
+
+      <div class="section-title">Sauvegarde</div>
+      <div class="row">
+        <button class="ghost" id="share">Partager par lien</button>
+        <button class="ghost" id="export">Exporter (JSON)</button>
+        <button class="ghost" id="import">Importer</button>
+        <button class="ghost" id="reset">Tout effacer</button>
+      </div>
+      <input id="fileInput" type="file" accept=".json" style="display:none">
+    </div>
+  </div>
+  <div id="map"><div id="status">Chargement des contours des communes…</div><div id="hoverInfo"></div></div>
+</div>
+<button id="helpBtn" title="Aide">?</button>
+<div id="helpOverlay" style="display:none">
+  <div class="card">
+    <h2>Comment utiliser la carte</h2>
+    <ol>
+      <li><b>Créez votre groupement</b> (champ « Nouveau groupement ») : il est sélectionné automatiquement.</li>
+      <li><b>Cliquez sur les communes</b> pour les attribuer au groupement actif. Une commune déjà prise change automatiquement de main (pas de doublon).</li>
+      <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime ; cliquez sur la <b>pastille</b> de couleur d'un groupement pour la changer (couleurs FI, en évitant les doublons).</li>
+      <li><b>Limoux</b> est découpée en 3 secteurs (République, Guynemer, Saint-Jean), d’après l’adresse des 3 GA limousois : chaque secteur s’attribue séparément.</li>
+      <li><b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza).</li>
+      <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez.</li>
+    </ol>
+    <button id="helpClose">C'est parti</button>
+  </div>
+</div>
+<svg width="0" height="0" style="position:absolute"><defs>
+<pattern id="hatchPart" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">
+  <line x1="0" y1="0" x2="0" y2="7" stroke="#212320" stroke-width="2.5"/>
+</pattern>
+</defs></svg>
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const CIRCO_CODES = new Set(["11002","11003","11004","11005","11007","11008","11009","11010","11011","11015","11016","11017","11018","11019","11020","11021","11026","11028","11029","11030","11031","11032","11033","11034","11035","11036","11038","11039","11044","11045","11046","11047","11049","11051","11052","11053","11054","11055","11057","11058","11059","11060","11061","11062","11063","11065","11066","11069","11070","11072","11073","11074","11076","11078","11080","11082","11083","11084","11087","11089","11090","11091","11093","11094","11096","11100","11101","11103","11104","11105","11107","11108","11109","11112","11113","11114","11115","11117","11118","11119","11120","11121","11123","11127","11128","11129","11130","11131","11133","11134","11135","11136","11137","11138","11139","11141","11142","11147","11149","11150","11153","11155","11156","11158","11159","11160","11161","11162","11163","11165","11166","11167","11168","11169","11173","11175","11177","11178","11179","11181","11182","11183","11184","11185","11186","11187","11189","11191","11192","11193","11195","11196","11197","11199","11204","11206","11207","11208","11209","11211","11213","11214","11216","11218","11219","11224","11225","11226","11227","11228","11229","11230","11231","11234","11235","11236","11238","11239","11240","11242","11243","11244","11245","11246","11247","11249","11250","11251","11252","11253","11254","11259","11260","11263","11265","11268","11270","11271","11274","11275","11276","11277","11278","11281","11282","11283","11284","11287","11288","11289","11290","11291","11292","11293","11294","11299","11300","11302","11303","11304","11306","11308","11309","11310","11311","11312","11313","11314","11316","11317","11320","11321","11323","11325","11326","11327","11328","11331","11333","11334","11335","11336","11338","11339","11340","11341","11343","11344","11346","11347","11348","11350","11352","11354","11355","11356","11357","11358","11359","11361","11362","11363","11364","11365","11367","11371","11373","11374","11375","11376","11377","11378","11380","11381","11382","11383","11384","11385","11386","11387","11388","11389","11392","11394","11399","11400","11401","11402","11404","11406","11407","11408","11409","11412","11414","11415","11417","11418","11419","11420","11423","11424","11427","11428","11430","11432","11434","11435","11437","11438","11439","11440"]);
+
+const PALETTE = ["#7b13d6","#f91616","#3885f4","#ed5fb1","#f9c900","#2e9959","#00b8d4","#ff7043","#8bc34a","#e91e8c","#795548","#cddc39"];
+const STORAGE_KEY = "lfi-circo3-aude-v1";
+const PARTIELLES = { "11069": "Carcassonne" };
+const PARTIAL_GEOM = {"type":"Polygon","coordinates":[[[2.30679,43.179092],[2.3069,43.1784],[2.30738,43.177177],[2.30725,43.176704],[2.307368,43.175824],[2.303517,43.175824],[2.3017,43.1759],[2.3009,43.1763],[2.2989,43.1771],[2.295908,43.177998],[2.2966,43.1784],[2.294384,43.17844],[2.293037,43.178823],[2.2924,43.1796],[2.28992,43.18007],[2.289422,43.180551],[2.288926,43.18082],[2.287756,43.181219],[2.284919,43.181697],[2.285815,43.182515],[2.287213,43.183583],[2.289228,43.185496],[2.2905,43.1864],[2.2906,43.1867],[2.290627,43.187348],[2.2905,43.1886],[2.290379,43.188628],[2.2897,43.1883],[2.288418,43.187234],[2.287792,43.186908],[2.285239,43.186308],[2.285122,43.190604],[2.2866,43.1909],[2.286728,43.191057],[2.2883,43.1911],[2.290143,43.191317],[2.2901,43.192],[2.29,43.1923],[2.2901,43.1934],[2.2906,43.1948],[2.2907,43.1955],[2.2906,43.1958],[2.290627,43.196167],[2.291,43.1966],[2.2919,43.198],[2.2917,43.1984],[2.291111,43.19875],[2.2908,43.1988],[2.2897,43.1993],[2.289,43.1992],[2.288359,43.199231],[2.287437,43.1995],[2.2871,43.1997],[2.286823,43.199631],[2.28612,43.19892],[2.2848,43.1994],[2.284661,43.199313],[2.283597,43.197748],[2.2823,43.1982],[2.2819,43.1985],[2.2808,43.1988],[2.2803,43.1991],[2.279147,43.199213],[2.278163,43.199427],[2.2755,43.2006],[2.274854,43.200812],[2.276272,43.203429],[2.272432,43.204244],[2.269987,43.203111],[2.2688,43.203],[2.268191,43.203037],[2.267198,43.207414],[2.266935,43.207959],[2.2665,43.2097],[2.2661,43.2109],[2.2644,43.2141],[2.262756,43.216288],[2.2625,43.2168],[2.262221,43.217021],[2.264788,43.219868],[2.2652,43.2198],[2.267,43.2198],[2.267955,43.22008],[2.269916,43.22109],[2.271771,43.221058],[2.273933,43.221351],[2.2754,43.2227],[2.274917,43.222893],[2.277146,43.224424],[2.276713,43.224813],[2.2777,43.2258],[2.276201,43.226339],[2.275917,43.226519],[2.276922,43.227594],[2.2774,43.2284],[2.277702,43.229094],[2.276745,43.22942],[2.277194,43.230308],[2.2759,43.2308],[2.263883,43.234233],[2.261721,43.234992],[2.2623,43.2358],[2.262331,43.23616],[2.262744,43.237285],[2.2635,43.2387],[2.268155,43.238882],[2.268203,43.238964],[2.269136,43.238687],[2.2741,43.2413],[2.2754,43.2434],[2.275497,43.2443],[2.276166,43.244204],[2.280171,43.242762],[2.281187,43.242167],[2.284461,43.240693],[2.286,43.2394],[2.2891,43.2375],[2.2894,43.2377],[2.295988,43.233708],[2.295955,43.23343],[2.2968,43.232572],[2.2965,43.2322],[2.296546,43.232158],[2.3018,43.2305],[2.3022,43.2309],[2.309152,43.227456],[2.309483,43.227667],[2.3098,43.2276],[2.310805,43.2276],[2.3134,43.227],[2.3153,43.227],[2.315225,43.228515],[2.3151,43.2286],[2.314528,43.228654],[2.31903,43.229355],[2.322633,43.230357],[2.324807,43.231278],[2.327512,43.227284],[2.327383,43.225728],[2.327583,43.224562],[2.327123,43.222851],[2.328777,43.222166],[2.32919,43.220332],[2.331553,43.219542],[2.331943,43.21924],[2.332605,43.218898],[2.333443,43.218164],[2.333845,43.21748],[2.334684,43.21752],[2.33635,43.217993],[2.337319,43.217692],[2.338252,43.217048],[2.339646,43.217414],[2.339776,43.217537],[2.340591,43.217594],[2.341099,43.217724],[2.341312,43.217675],[2.342257,43.217977],[2.342813,43.218009],[2.343072,43.218115],[2.34351,43.217985],[2.343864,43.218018],[2.344726,43.2177],[2.344963,43.21783],[2.345282,43.217757],[2.345294,43.217496],[2.345412,43.217309],[2.345565,43.217219],[2.34579,43.217374],[2.346239,43.217145],[2.346487,43.216738],[2.34657,43.216436],[2.347172,43.216518],[2.347645,43.216714],[2.348342,43.216648],[2.348342,43.215947],[2.347869,43.215613],[2.34755,43.214774],[2.347515,43.214211],[2.347243,43.213771],[2.346877,43.213453],[2.34657,43.213005],[2.346475,43.212679],[2.34677,43.212264],[2.346664,43.212166],[2.346759,43.211506],[2.347042,43.211302],[2.347066,43.211098],[2.347373,43.210682],[2.348212,43.210519],[2.349618,43.210528],[2.34996,43.210234],[2.350244,43.210544],[2.350527,43.210568],[2.350835,43.210707],[2.351154,43.210707],[2.351579,43.210536],[2.35178,43.210193],[2.35269,43.209721],[2.352796,43.209264],[2.351626,43.208278],[2.351662,43.207512],[2.351792,43.207422],[2.351886,43.206893],[2.351827,43.206526],[2.351579,43.206175],[2.351969,43.20602],[2.352323,43.205751],[2.352229,43.205548],[2.351165,43.205931],[2.350799,43.205784],[2.34989,43.206485],[2.348803,43.206135],[2.348625,43.205784],[2.346203,43.202483],[2.341985,43.19959],[2.34052,43.199875],[2.339256,43.200747],[2.335145,43.202679],[2.33088,43.202671],[2.329391,43.201815],[2.329119,43.201456],[2.329001,43.201204],[2.329048,43.20047],[2.329533,43.19972],[2.331081,43.199345],[2.337768,43.198066],[2.329793,43.188848],[2.330466,43.185873],[2.33041,43.185382],[2.329486,43.185726],[2.3284,43.1842],[2.328322,43.1842],[2.327383,43.18514],[2.326355,43.185946],[2.3234,43.1886],[2.3229,43.1885],[2.3223,43.1885],[2.322,43.1883],[2.321652,43.187813],[2.3215,43.1874],[2.3215,43.187],[2.321593,43.186696],[2.3219,43.1863],[2.322562,43.185629],[2.322917,43.184871],[2.322915,43.184062],[2.322409,43.183241],[2.322101,43.182923],[2.321062,43.182132],[2.3195,43.1815],[2.318774,43.1813],[2.318492,43.1813],[2.3172,43.1817],[2.3152,43.1826],[2.314,43.1829],[2.313122,43.18333],[2.3128,43.1834],[2.3123,43.1834],[2.3104,43.183],[2.3093,43.1826],[2.3084,43.182],[2.3078,43.1814],[2.307262,43.180714],[2.3068,43.1797],[2.30679,43.179092]],[[2.345636,43.210446],[2.345908,43.21043],[2.346168,43.210087],[2.346511,43.21047],[2.346274,43.210731],[2.345258,43.210837],[2.345022,43.210381],[2.344845,43.210674],[2.344502,43.210796],[2.344018,43.210144],[2.344041,43.210079],[2.344348,43.210079],[2.345034,43.210356],[2.345424,43.210568],[2.345636,43.210446]]]};
+const SPLIT_GEOMS = { "11206": [
+  { nom: "Limoux · République (centre)", pop: 5088, geom: {"type":"Polygon","coordinates":[[[2.206799,43.068239],[2.269769,43.051469],[2.2696,43.0513],[2.2698,43.0507],[2.2698,43.0499],[2.2697,43.0495],[2.2698,43.0493],[2.2706,43.0488],[2.2707,43.0485],[2.2709,43.0483],[2.2709,43.0478],[2.2699,43.0469],[2.2715,43.0451],[2.2711,43.0447],[2.2712,43.0446],[2.2712,43.044],[2.2711,43.0437],[2.2706,43.0434],[2.2706,43.043],[2.2709,43.0426],[2.2706,43.0416],[2.2703,43.0412],[2.2693,43.0404],[2.2687,43.0401],[2.2681,43.0396],[2.2686,43.0389],[2.2689,43.0383],[2.2688,43.038],[2.2691,43.0371],[2.2667,43.0367],[2.2663,43.0367],[2.2655,43.0363],[2.2646,43.0361],[2.2645,43.036],[2.2645,43.0356],[2.2647,43.035],[2.2649,43.0348],[2.2652,43.0342],[2.2652,43.034],[2.2659,43.0335],[2.2659,43.0332],[2.2658,43.033],[2.2659,43.0318],[2.2658,43.0316],[2.266,43.0312],[2.2658,43.0311],[2.2654,43.0303],[2.265,43.0301],[2.265,43.0298],[2.2657,43.0289],[2.2667,43.0284],[2.2671,43.0283],[2.2679,43.0275],[2.2684,43.0273],[2.2706,43.0261],[2.273,43.0256],[2.2738,43.0257],[2.2793,43.0275],[2.2801,43.0279],[2.2814,43.0291],[2.282,43.0302],[2.2823,43.0305],[2.2835,43.03],[2.2839,43.0288],[2.2839,43.0285],[2.284,43.0284],[2.2859,43.0286],[2.2864,43.0288],[2.2863,43.0296],[2.2856,43.0305],[2.2862,43.0328],[2.2865,43.0327],[2.2868,43.0324],[2.2873,43.0324],[2.2877,43.0325],[2.289,43.0324],[2.29,43.0328],[2.2903,43.0326],[2.2904,43.0324],[2.2903,43.0321],[2.2904,43.032],[2.29,43.0316],[2.2902,43.0312],[2.2904,43.0311],[2.2907,43.0307],[2.2907,43.0305],[2.2911,43.0303],[2.2911,43.03],[2.2912,43.0299],[2.2911,43.0297],[2.2939,43.0289],[2.2945,43.028],[2.2949,43.0276],[2.2944,43.0272],[2.2952,43.0265],[2.2958,43.0255],[2.2962,43.0251],[2.2962,43.025],[2.2973,43.0242],[2.2976,43.0238],[2.2989,43.0234],[2.2994,43.0224],[2.3,43.0215],[2.301,43.0215],[2.3027,43.0205],[2.3034,43.02],[2.3041,43.0197],[2.3045,43.0194],[2.3064,43.0186],[2.3071,43.0182],[2.308,43.0179],[2.3096,43.0176],[2.31,43.0176],[2.3094,43.0175],[2.3091,43.017],[2.3084,43.0164],[2.3081,43.0159],[2.3078,43.0158],[2.3071,43.0147],[2.3052,43.014],[2.3041,43.0135],[2.3028,43.0122],[2.3023,43.0118],[2.3014,43.0119],[2.3002,43.0115],[2.2992,43.0114],[2.2968,43.0115],[2.2943,43.0115],[2.294,43.0114],[2.2936,43.0111],[2.2932,43.0116],[2.2923,43.0118],[2.2919,43.012],[2.2909,43.0122],[2.2901,43.0123],[2.2898,43.0122],[2.2895,43.0123],[2.2889,43.0123],[2.2876,43.0129],[2.287,43.0133],[2.2846,43.0134],[2.2841,43.0131],[2.2834,43.0129],[2.2816,43.013],[2.2813,43.0131],[2.2804,43.0129],[2.2784,43.0127],[2.2779,43.0127],[2.2777,43.0128],[2.2769,43.0129],[2.2761,43.0128],[2.2758,43.013],[2.2756,43.0137],[2.2751,43.0142],[2.2744,43.0151],[2.2742,43.0151],[2.2739,43.0155],[2.2731,43.0157],[2.2718,43.0166],[2.2711,43.0172],[2.2691,43.0183],[2.2682,43.0187],[2.2664,43.0198],[2.2665,43.0205],[2.2664,43.0225],[2.2662,43.0228],[2.2653,43.0226],[2.264,43.0226],[2.2627,43.0224],[2.2598,43.0222],[2.2595,43.0221],[2.2572,43.022],[2.254,43.0228],[2.2532,43.0233],[2.2522,43.0231],[2.2521,43.0234],[2.2515,43.0243],[2.2515,43.0245],[2.2518,43.0252],[2.252,43.0254],[2.252,43.0265],[2.2522,43.0279],[2.2522,43.0286],[2.252,43.0296],[2.2508,43.033],[2.2512,43.0346],[2.2528,43.0367],[2.2528,43.0369],[2.2527,43.037],[2.2526,43.0374],[2.2519,43.0382],[2.2504,43.0385],[2.2499,43.0385],[2.2494,43.0387],[2.2478,43.0388],[2.2474,43.0389],[2.2462,43.0396],[2.2455,43.0403],[2.2451,43.041],[2.2437,43.0426],[2.2435,43.0427],[2.2429,43.0443],[2.2428,43.0448],[2.2423,43.0456],[2.2421,43.0458],[2.2412,43.046],[2.2392,43.046],[2.2388,43.0459],[2.2382,43.0454],[2.2384,43.0454],[2.2387,43.0449],[2.2387,43.0447],[2.2385,43.0443],[2.2385,43.0437],[2.2383,43.0434],[2.2377,43.0436],[2.2358,43.0438],[2.2341,43.0429],[2.234,43.0427],[2.2333,43.0421],[2.2327,43.042],[2.2326,43.0419],[2.2326,43.0416],[2.2323,43.0412],[2.2327,43.0408],[2.2325,43.0406],[2.2317,43.0401],[2.2308,43.0398],[2.2295,43.039],[2.229,43.0388],[2.2281,43.0393],[2.2273,43.0392],[2.226566,43.038955],[2.206799,43.068239]]]} },
+  { nom: "Limoux · Guynemer (nord)", pop: 2963, geom: {"type":"Polygon","coordinates":[[[2.206799,43.068239],[2.193149,43.072811],[2.1933,43.073],[2.194,43.0732],[2.1946,43.0731],[2.1949,43.0729],[2.1972,43.0729],[2.1974,43.0731],[2.1979,43.0733],[2.1982,43.0736],[2.1988,43.0731],[2.1995,43.0727],[2.1995,43.0739],[2.201,43.0737],[2.2019,43.0732],[2.2022,43.0742],[2.2042,43.0743],[2.204,43.0752],[2.2037,43.0757],[2.2044,43.0761],[2.2052,43.0763],[2.206,43.0767],[2.2065,43.0768],[2.2071,43.0771],[2.208,43.0774],[2.2088,43.0776],[2.2091,43.0776],[2.2099,43.0779],[2.2101,43.0781],[2.2109,43.0783],[2.211,43.0784],[2.2115,43.0784],[2.2118,43.0785],[2.2121,43.0788],[2.2138,43.0793],[2.2141,43.0795],[2.2148,43.0795],[2.2155,43.0797],[2.2157,43.08],[2.2161,43.0802],[2.2165,43.0806],[2.2183,43.0817],[2.2206,43.0805],[2.2235,43.0798],[2.2252,43.0796],[2.2252,43.0797],[2.228,43.0803],[2.228,43.0792],[2.2279,43.0789],[2.2281,43.0784],[2.2282,43.0776],[2.2282,43.0763],[2.228,43.0756],[2.2278,43.0753],[2.2283,43.0752],[2.2289,43.0749],[2.2303,43.0745],[2.2313,43.0741],[2.2313,43.0742],[2.2317,43.0741],[2.2343,43.074],[2.2352,43.0737],[2.2354,43.0738],[2.2364,43.0733],[2.2372,43.0732],[2.2377,43.0736],[2.2385,43.0736],[2.24,43.0734],[2.2416,43.073],[2.2428,43.0733],[2.2437,43.0729],[2.2447,43.0726],[2.2457,43.0719],[2.2464,43.0717],[2.2474,43.0717],[2.25,43.0705],[2.252,43.0694],[2.2536,43.0697],[2.2561,43.0708],[2.2581,43.071],[2.2607,43.0718],[2.2612,43.0716],[2.2616,43.0717],[2.2621,43.0717],[2.2628,43.0715],[2.2631,43.0715],[2.2637,43.0712],[2.2653,43.07],[2.2653,43.0698],[2.266,43.0693],[2.266,43.0678],[2.2658,43.0675],[2.2661,43.0659],[2.2662,43.0657],[2.2664,43.0657],[2.2672,43.0653],[2.2681,43.0651],[2.2694,43.0645],[2.2708,43.0648],[2.2711,43.0647],[2.2732,43.0634],[2.2744,43.0625],[2.2746,43.0623],[2.2747,43.0619],[2.2753,43.061],[2.2763,43.0607],[2.277,43.0606],[2.2779,43.0603],[2.2785,43.06],[2.2777,43.0588],[2.277,43.0582],[2.2769,43.0582],[2.2765,43.0579],[2.2761,43.0574],[2.2759,43.0573],[2.2749,43.056],[2.274,43.0543],[2.2735,43.0542],[2.2712,43.0542],[2.2704,43.054],[2.2693,43.0533],[2.269769,43.051469],[2.206799,43.068239]]]} },
+  { nom: "Limoux · Saint-Jean (centre-ouest)", pop: 2481, geom: {"type":"Polygon","coordinates":[[[2.206799,43.068239],[2.226566,43.038955],[2.2261,43.0388],[2.2254,43.0383],[2.2241,43.0378],[2.2233,43.0377],[2.2223,43.0371],[2.2222,43.0369],[2.2214,43.0367],[2.2213,43.0366],[2.2197,43.0364],[2.2197,43.0367],[2.2192,43.0385],[2.2188,43.0392],[2.2193,43.0396],[2.2171,43.0399],[2.2166,43.0405],[2.2165,43.0409],[2.2175,43.041],[2.2174,43.0414],[2.2174,43.0416],[2.2175,43.0417],[2.2169,43.0417],[2.2166,43.042],[2.2157,43.0433],[2.2154,43.0435],[2.2152,43.0439],[2.2148,43.0453],[2.2143,43.045],[2.2139,43.0449],[2.2131,43.0445],[2.2124,43.0443],[2.2118,43.0439],[2.2116,43.0439],[2.2111,43.0437],[2.2109,43.0434],[2.2095,43.0428],[2.2082,43.0418],[2.207,43.0415],[2.2058,43.0409],[2.2057,43.0405],[2.2054,43.0403],[2.205,43.0398],[2.2044,43.0393],[2.2038,43.0391],[2.2032,43.0391],[2.2029,43.039],[2.2018,43.0389],[2.2008,43.0385],[2.2001,43.0384],[2.1999,43.0382],[2.1993,43.0382],[2.1991,43.038],[2.1984,43.0378],[2.1983,43.0379],[2.1981,43.0378],[2.197,43.0377],[2.1963,43.0374],[2.195,43.0372],[2.1943,43.0372],[2.1937,43.0373],[2.1933,43.0372],[2.1926,43.0372],[2.1923,43.0373],[2.1911,43.0373],[2.1907,43.0371],[2.1879,43.0443],[2.1896,43.0451],[2.1893,43.0462],[2.1895,43.0474],[2.1895,43.048],[2.19,43.049],[2.1901,43.0495],[2.1904,43.0498],[2.1907,43.0504],[2.1909,43.0505],[2.1908,43.0506],[2.1908,43.0513],[2.1913,43.0521],[2.1912,43.0525],[2.1906,43.0528],[2.19,43.0527],[2.1896,43.0524],[2.1894,43.0517],[2.1892,43.0518],[2.1884,43.0526],[2.1882,43.0527],[2.1881,43.0529],[2.1878,43.0531],[2.187,43.0533],[2.1862,43.053],[2.1863,43.0543],[2.1855,43.0544],[2.1852,43.0546],[2.1828,43.0553],[2.1818,43.0554],[2.1804,43.0559],[2.1808,43.0566],[2.1818,43.0576],[2.1826,43.0586],[2.1824,43.0588],[2.1849,43.0596],[2.1853,43.0601],[2.1858,43.0605],[2.1861,43.0609],[2.1885,43.0627],[2.1895,43.0631],[2.1916,43.0632],[2.192,43.0638],[2.1922,43.0638],[2.1923,43.0645],[2.1923,43.0653],[2.1922,43.0658],[2.1918,43.0667],[2.1919,43.0673],[2.1922,43.0681],[2.1922,43.0692],[2.1923,43.0694],[2.1924,43.0704],[2.1921,43.0709],[2.1919,43.071],[2.1919,43.0716],[2.192,43.0718],[2.1929,43.0725],[2.193149,43.072811],[2.206799,43.068239]]]} }
+] };
+
+let groupements = [];
+let activeGroup = null;
+let layers = {};
+let geoLayer = null;
+const expandedGroups = new Set();
+
+const map = L.map("map", { zoomControl: true });
+const TILE_SOURCES = [
+  { url: "https://tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", maxZoom: 19, attribution: "&copy; OpenStreetMap France" },
+  { url: "https://tile.openstreetmap.de/{z}/{x}/{y}.png", maxZoom: 18, attribution: "&copy; OpenStreetMap Deutschland" },
+  { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 19, attribution: "Tiles &copy; Esri" }
+];
+let tileIdx = 0, tileErrors = 0, tileLayer = null;
+function addTileLayer() {
+  const src = TILE_SOURCES[tileIdx];
+  tileLayer = L.tileLayer(src.url, { maxZoom: src.maxZoom, attribution: src.attribution });
+  tileLayer.on("tileerror", () => {
+    tileErrors++;
+    if (tileErrors >= 5 && tileIdx < TILE_SOURCES.length - 1) {
+      tileIdx++; tileErrors = 0;
+      map.removeLayer(tileLayer);
+      addTileLayer();
+    }
+  });
+  tileLayer.addTo(map);
+}
+addTileLayer();
+
+fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geometry=contour")
+  .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+  .then(gj => {
+    gj.features = gj.features.filter(f => CIRCO_CODES.has(f.properties.code));
+    const expanded = [];
+    gj.features.forEach(f => {
+      const secs = SPLIT_GEOMS[f.properties.code];
+      if (secs) secs.forEach((sec, i) => expanded.push({ type: "Feature", properties: { code: f.properties.code + "#" + i }, geometry: sec.geom }));
+      else expanded.push(f);
+    });
+    gj.features = expanded;
+    if (!gj.features.length) throw new Error("empty");
+    build(gj);
+  })
+  .catch(() => {
+    document.getElementById("status").textContent =
+      "Impossible de charger les contours (geo.api.gouv.fr). Vérifiez la connexion puis rechargez la page.";
+  });
+
+const hoverInfo = document.getElementById("hoverInfo");
+function showHover(code) {
+  const g = groupements.find(g => g.communes.includes(code));
+  const pop = populationOf(code);
+  const popTxt = pop ? " · " + pop.toLocaleString("fr-FR") + " hab" : "";
+  hoverInfo.innerHTML =
+    `<div class="hi-name">${escapeHtml(communeName(code))}</div>` +
+    (g
+      ? `<div class="hi-sub"><span class="hi-dot" style="background:${g.color}"></span><span>${escapeHtml(g.nom)}${popTxt}</span></div>`
+      : `<div class="hi-sub">Commune libre${popTxt}</div>`);
+  hoverInfo.style.display = "block";
+}
+function hideHover() { hoverInfo.style.display = "none"; }
+
+function build(gj) {
+  gj.features.forEach(f => { if (PARTIAL_GEOM && f.properties.code === "11069") f.geometry = PARTIAL_GEOM; });
+  geoLayer = L.geoJSON(gj, {
+    style: f => styleFor(f.properties.code),
+    onEachFeature: (f, layer) => {
+      const code = f.properties.code;
+      layers[code] = layer;
+      layer.on("click", () => onCommuneClick(code));
+      layer.on("mouseover", () => { layer.setStyle({ weight: 2.5, color: "#ffffff" }); showHover(code); });
+      layer.on("mouseout", () => { layer.setStyle({ weight: 1, color: "#212320" }); hideHover(); });
+      if (PARTIELLES[code]) layer.bindTooltip("⚠ " + communeName(code) + " — partagée", { permanent: true, direction: "center", className: "partiel-tip" });
+    }
+  }).addTo(map);
+  const partFeatures = gj.features.filter(f => PARTIELLES[f.properties.code]);
+  if (partFeatures.length) {
+    L.geoJSON({ type: "FeatureCollection", features: partFeatures }, {
+      interactive: false,
+      className: "hatch-fill",
+      style: () => ({ stroke: false, fill: true, fillOpacity: 0.5 })
+    }).addTo(map);
+  }
+  map.fitBounds(geoLayer.getBounds());
+  document.getElementById("status").remove();
+}
+
+function styleFor(code) {
+  const g = groupements.find(g => g.communes.includes(code));
+  return {
+    fillColor: g ? g.color : "#212320",
+    fillOpacity: g ? 0.75 : 0.35,
+    color: "#212320",
+    weight: 1,
+    dashArray: PARTIELLES[code] ? "5 4" : null
+  };
+}
+
+function onCommuneClick(code) {
+  if (activeGroup === null) {
+    showToast("Sélectionnez d'abord un groupement dans le panneau de gauche.");
+    return;
+  }
+  if (activeGroup === "erase") {
+    unassign(code);
+    return;
+  }
+  const current = groupements.find(g => g.communes.includes(code));
+  if (current && current.id === activeGroup) {
+    unassign(code);
+    return;
+  }
+  assign(code, activeGroup);
+  if (PARTIELLES[code]) showToast("⚠ Carcassonne est partagée : seuls les quartiers Saint-Jacques, Le Viguier, Grèzes et Salvaza sont en 3ᵉ circo.");
+}
+
+function assign(code, gid) {
+  groupements.forEach(g => {
+    const i = g.communes.indexOf(code);
+    if (i !== -1 && g.id !== gid) {
+      g.communes.splice(i, 1);
+      showToast(`« ${communeName(code)} » retirée à ${g.nom} (pas de doublon).`);
+    }
+  });
+  const g = groupements.find(g => g.id === gid);
+  if (!g.communes.includes(code)) g.communes.push(code);
+  refresh();
+}
+
+function unassign(code) {
+  let removed = false;
+  groupements.forEach(g => {
+    const i = g.communes.indexOf(code);
+    if (i !== -1) { g.communes.splice(i, 1); removed = true; }
+  });
+  if (removed) refresh();
+}
+
+function refresh() {
+  if (geoLayer) geoLayer.eachLayer(l => l.setStyle(styleFor(l.feature.properties.code)));
+  renderGroupements();
+  renderStats();
+  save();
+}
+
+function renderGroupements() {
+  const box = document.getElementById("groupements");
+  box.innerHTML = "";
+  const erase = document.createElement("div");
+  erase.className = "brush-item" + (activeGroup === "erase" ? " active" : "");
+  erase.style.color = "#FFFCF4";
+  erase.innerHTML = `<span class="swatch" style="background:#212320;border:1px solid #5a5b57"></span> Gomme (libérer une commune)`;
+  erase.onclick = () => { activeGroup = "erase"; renderGroupements(); };
+  box.appendChild(erase);
+
+  groupements.forEach(g => {
+    const div = document.createElement("div");
+    div.className = "brush-item" + (activeGroup === g.id ? " active" : "");
+    div.style.color = g.color;
+    const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
+    div.innerHTML = `
+      <span class="swatch" style="background:${g.color}" title="Cliquer pour changer la couleur"></span>
+      <span style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
+      <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.</span>
+      <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
+      <button class="del rm" title="Supprimer le groupement">✕</button>`;
+    div.onclick = () => { activeGroup = g.id; renderGroupements(); };
+    div.querySelector(".swatch").onclick = (e) => {
+      e.stopPropagation();
+      const used = new Set(groupements.filter(x => x.id !== g.id).map(x => x.color));
+      const free = PALETTE.filter(c => !used.has(c));
+      if (!free.length) { showToast("Toutes les couleurs FI sont déjà utilisées."); return; }
+      const start = PALETTE.indexOf(g.color);
+      g.color = free.find(c => PALETTE.indexOf(c) > start) || free[0];
+      refresh();
+    };
+    div.querySelector(".tgl").onclick = (e) => {
+      e.stopPropagation();
+      if (expandedGroups.has(g.id)) expandedGroups.delete(g.id); else expandedGroups.add(g.id);
+      renderGroupements();
+    };
+    div.querySelector(".rm").onclick = (e) => {
+      e.stopPropagation();
+      if (g.communes.length && !confirm(`Supprimer « ${g.nom} » ? Ses ${g.communes.length} communes redeviennent libres.`)) return;
+      groupements = groupements.filter(x => x.id !== g.id);
+      if (activeGroup === g.id) activeGroup = null;
+      refresh();
+    };
+    div.oncontextmenu = (e) => {
+      e.preventDefault();
+      const nom = prompt("Nouveau nom du groupement :", g.nom);
+      if (nom && nom.trim()) { g.nom = nom.trim(); refresh(); }
+    };
+    box.appendChild(div);
+
+    if (expandedGroups.has(g.id)) {
+      const list = document.createElement("div");
+      list.className = "commune-list";
+      const sorted = [...g.communes].sort((a, b) => communeName(a).localeCompare(communeName(b), "fr"));
+      if (!sorted.length) {
+        const empty = document.createElement("div");
+        empty.className = "cl-empty";
+        empty.textContent = "Aucune commune attribuée";
+        list.appendChild(empty);
+      }
+      sorted.forEach(code => {
+        const row = document.createElement("div");
+        row.className = "cl-row";
+        row.innerHTML = `<span class="cl-name" title="Cliquer pour zoomer">${escapeHtml(communeName(code))}${PARTIELLES[code] ? " ⚠" : ""}</span><button class="cl-del" title="Retirer cette commune">✕</button>`;
+        row.querySelector(".cl-name").onclick = (e) => {
+          e.stopPropagation();
+          const l = layers[code];
+          if (l) {
+            map.fitBounds(l.getBounds(), { maxZoom: 11 });
+            l.fire("mouseover");
+            setTimeout(() => l.fire("mouseout"), 1500);
+          }
+        };
+        row.querySelector(".cl-del").onclick = (e) => { e.stopPropagation(); unassign(code); };
+        list.appendChild(row);
+      });
+      box.appendChild(list);
+    }
+  });
+  const mode = document.getElementById("brushMode");
+  const g = groupements.find(g => g.id === activeGroup);
+  mode.textContent = g ? `→ pinceau : ${g.nom}` : (activeGroup === "erase" ? "→ gomme" : "");
+}
+
+function renderStats() {
+  const total = UNIT_TOTAL;
+  const popTotal = totalPop;
+  const assigned = groupements.reduce((s, g) => s + g.communes.length, 0);
+  const popAssigned = groupements.reduce((s, g) => s + g.communes.reduce((x, c) => x + (populationOf(c) || 0), 0), 0);
+  document.getElementById("stats").innerHTML =
+    `<b>${assigned}</b> / ${total} communes attribuées (${Math.round(100 * assigned / total)} %)<br>` +
+    `<b>${fmt(popAssigned)}</b> / ${fmt(popTotal)} habitants couverts` +
+    (assigned < total ? `<br><span style="color:#f5a623">${total - assigned} commune(s) encore libre(s)</span>` : `<br><span style="color:#18b26b">✓ Territoire entièrement couvert</span>`);
+}
+
+const COMMUNES_INFO = [{"code":"11002","nom":"Airoux","population":201},{"code":"11003","nom":"Ajac","population":196},{"code":"11004","nom":"Alaigne","population":327},{"code":"11005","nom":"Alairac","population":1395},{"code":"11007","nom":"Albières","population":117},{"code":"11008","nom":"Alet-les-Bains","population":379},{"code":"11009","nom":"Alzonne","population":1586},{"code":"11010","nom":"Antugnac","population":291},{"code":"11011","nom":"Aragon","population":487},{"code":"11015","nom":"Arques","population":248},{"code":"11016","nom":"Arquettes-en-Val","population":83},{"code":"11017","nom":"Artigues","population":72},{"code":"11018","nom":"Arzens","population":1174},{"code":"11019","nom":"Aunat","population":61},{"code":"11020","nom":"Auriac","population":33},{"code":"11021","nom":"Axat","population":479},{"code":"11026","nom":"Baraigne","population":163},{"code":"11028","nom":"Belcaire","population":365},{"code":"11029","nom":"Belcastel-et-Buc","population":60},{"code":"11030","nom":"Belflou","population":111},{"code":"11031","nom":"Belfort-sur-Rebenty","population":25},{"code":"11032","nom":"Bellegarde-du-Razès","population":251},{"code":"11033","nom":"Belpech","population":1343},{"code":"11034","nom":"Belvèze-du-Razès","population":884},{"code":"11035","nom":"Belvianes-et-Cavirac","population":270},{"code":"11036","nom":"Belvis","population":166},{"code":"11038","nom":"Bessède-de-Sault","population":63},{"code":"11039","nom":"La Bezole","population":44},{"code":"11044","nom":"Bouisse","population":104},{"code":"11045","nom":"Bouriège","population":151},{"code":"11046","nom":"Bourigeole","population":56},{"code":"11047","nom":"Le Bousquet","population":39},{"code":"11049","nom":"Bram","population":3233},{"code":"11051","nom":"Brézilhac","population":172},{"code":"11052","nom":"Brousses-et-Villaret","population":365},{"code":"11053","nom":"Brugairolles","population":308},{"code":"11054","nom":"Les Brunels","population":268},{"code":"11055","nom":"Bugarach","population":250},{"code":"11057","nom":"Cahuzac","population":33},{"code":"11058","nom":"Cailhau","population":247},{"code":"11059","nom":"Cailhavel","population":154},{"code":"11060","nom":"Cailla","population":49},{"code":"11061","nom":"Cambieure","population":327},{"code":"11062","nom":"Campagna-de-Sault","population":20},{"code":"11063","nom":"Campagne-sur-Aude","population":618},{"code":"11065","nom":"Camps-sur-l'Agly","population":66},{"code":"11066","nom":"Camurac","population":110},{"code":"11069","nom":"Carcassonne (partie 3ᵉ circo)","population":16943},{"code":"11070","nom":"Carlipa","population":332},{"code":"11072","nom":"La Cassaigne","population":200},{"code":"11073","nom":"Cassaignes","population":61},{"code":"11074","nom":"Les Cassés","population":319},{"code":"11076","nom":"Castelnaudary","population":12151},{"code":"11078","nom":"Castelreng","population":207},{"code":"11080","nom":"Val de Lambronne","population":180},{"code":"11082","nom":"Caunette-sur-Lauquet","population":11},{"code":"11083","nom":"Caunettes-en-Val","population":56},{"code":"11084","nom":"Caux-et-Sauzens","population":1025},{"code":"11087","nom":"Cazalrenoux","population":105},{"code":"11089","nom":"Cenne-Monestiés","population":413},{"code":"11090","nom":"Cépie","population":598},{"code":"11091","nom":"Chalabre","population":1084},{"code":"11093","nom":"Le Clat","population":28},{"code":"11094","nom":"Clermont-sur-Lauquet","population":29},{"code":"11096","nom":"Comus","population":33},{"code":"11100","nom":"Corbières","population":38},{"code":"11101","nom":"Coudons","population":54},{"code":"11103","nom":"Couiza","population":1132},{"code":"11104","nom":"Counozouls","population":57},{"code":"11105","nom":"Cournanel","population":659},{"code":"11107","nom":"Courtauly","population":73},{"code":"11108","nom":"La Courtète","population":50},{"code":"11109","nom":"Coustaussa","population":50},{"code":"11112","nom":"Cubières-sur-Cinoble","population":83},{"code":"11113","nom":"Cucugnan","population":125},{"code":"11114","nom":"Cumiès","population":44},{"code":"11115","nom":"Cuxac-Cabardès","population":947},{"code":"11117","nom":"Davejean","population":163},{"code":"11118","nom":"Dernacueillette","population":43},{"code":"11119","nom":"La Digne-d'Amont","population":286},{"code":"11120","nom":"La Digne-d'Aval","population":522},{"code":"11121","nom":"Donazac","population":110},{"code":"11123","nom":"Duilhac-sous-Peyrepertuse","population":140},{"code":"11127","nom":"Escouloubre","population":71},{"code":"11128","nom":"Escueillens-et-Saint-Just-de-Bélengard","population":160},{"code":"11129","nom":"Espéraza","population":1774},{"code":"11130","nom":"Espezel","population":238},{"code":"11131","nom":"Val-du-Faby","population":580},{"code":"11133","nom":"Fajac-en-Val","population":54},{"code":"11134","nom":"Fajac-la-Relenque","population":48},{"code":"11135","nom":"La Fajolle","population":13},{"code":"11136","nom":"Fanjeaux","population":885},{"code":"11137","nom":"Félines-Termenès","population":130},{"code":"11138","nom":"Fendeille","population":658},{"code":"11139","nom":"Fenouillet-du-Razès","population":78},{"code":"11141","nom":"Ferran","population":125},{"code":"11142","nom":"Festes-et-Saint-André","population":185},{"code":"11147","nom":"Fontanès-de-Sault","population":6},{"code":"11149","nom":"Fonters-du-Razès","population":71},{"code":"11150","nom":"Fontiers-Cabardès","population":476},{"code":"11153","nom":"La Force","population":264},{"code":"11155","nom":"Fourtou","population":77},{"code":"11156","nom":"Fraisse-Cabardès","population":104},{"code":"11158","nom":"Gaja-et-Villedieu","population":306},{"code":"11159","nom":"Gaja-la-Selve","population":134},{"code":"11160","nom":"Galinagues","population":29},{"code":"11161","nom":"Gardie","population":128},{"code":"11162","nom":"Generville","population":48},{"code":"11163","nom":"Gincla","population":46},{"code":"11165","nom":"Ginoles","population":296},{"code":"11166","nom":"Gourvieille","population":68},{"code":"11167","nom":"Gramazie","population":130},{"code":"11168","nom":"Granès","population":118},{"code":"11169","nom":"Greffeil","population":100},{"code":"11173","nom":"Hounoux","population":135},{"code":"11175","nom":"Issel","population":483},{"code":"11177","nom":"Joucou","population":30},{"code":"11178","nom":"Labastide-d'Anjou","population":1255},{"code":"11179","nom":"Labastide-en-Val","population":88},{"code":"11181","nom":"Labécède-Lauragais","population":420},{"code":"11182","nom":"Lacombe","population":188},{"code":"11183","nom":"Ladern-sur-Lauquet","population":248},{"code":"11184","nom":"Lafage","population":90},{"code":"11185","nom":"Lagrasse","population":554},{"code":"11186","nom":"Lairière","population":52},{"code":"11187","nom":"Lanet","population":57},{"code":"11189","nom":"Laprade","population":122},{"code":"11191","nom":"Laroque-de-Fa","population":138},{"code":"11192","nom":"Lasbordes","population":846},{"code":"11193","nom":"Lasserre-de-Prouille","population":292},{"code":"11195","nom":"Laurabuc","population":431},{"code":"11196","nom":"Laurac","population":182},{"code":"11197","nom":"Lauraguel","population":622},{"code":"11199","nom":"Lavalette","population":1612},{"code":"11204","nom":"Lignairolles","population":33},{"code":"11206","nom":"Limoux","population":10532},{"code":"11207","nom":"Loupia","population":259},{"code":"11208","nom":"La Louvière-Lauragais","population":80},{"code":"11209","nom":"Luc-sur-Aude","population":257},{"code":"11211","nom":"Magrie","population":547},{"code":"11213","nom":"Maisons","population":59},{"code":"11214","nom":"Malras","population":444},{"code":"11216","nom":"Malviès","population":361},{"code":"11218","nom":"Marquein","population":78},{"code":"11219","nom":"Marsa","population":24},{"code":"11224","nom":"Massac","population":30},{"code":"11225","nom":"Mas-Saintes-Puelles","population":923},{"code":"11226","nom":"Mayreville","population":86},{"code":"11227","nom":"Mayronnes","population":42},{"code":"11228","nom":"Mazerolles-du-Razès","population":157},{"code":"11229","nom":"Mazuby","population":21},{"code":"11230","nom":"Mérial","population":28},{"code":"11231","nom":"Mézerville","population":96},{"code":"11234","nom":"Mireval-Lauragais","population":193},{"code":"11235","nom":"Missègre","population":72},{"code":"11236","nom":"Molandier","population":252},{"code":"11238","nom":"Molleville","population":128},{"code":"11239","nom":"Montauriol","population":85},{"code":"11240","nom":"Montazels","population":528},{"code":"11242","nom":"Montclar","population":178},{"code":"11243","nom":"Montferrand","population":622},{"code":"11244","nom":"Montfort-sur-Boulzane","population":87},{"code":"11245","nom":"Montgaillard","population":38},{"code":"11246","nom":"Montgradail","population":50},{"code":"11247","nom":"Monthaut","population":37},{"code":"11249","nom":"Montjardin","population":93},{"code":"11250","nom":"Montjoi","population":43},{"code":"11251","nom":"Val-de-Dagne","population":731},{"code":"11252","nom":"Montmaur","population":356},{"code":"11253","nom":"Montolieu","population":829},{"code":"11254","nom":"Montréal","population":2136},{"code":"11259","nom":"Moussoulens","population":956},{"code":"11260","nom":"Mouthoumet","population":116},{"code":"11263","nom":"Nébias","population":262},{"code":"11265","nom":"Niort-de-Sault","population":34},{"code":"11268","nom":"Orsans","population":87},{"code":"11270","nom":"Padern","population":139},{"code":"11271","nom":"Palairac","population":33},{"code":"11274","nom":"Pauligne","population":357},{"code":"11275","nom":"Payra-sur-l'Hers","population":210},{"code":"11276","nom":"Paziols","population":526},{"code":"11277","nom":"Pécharic-et-le-Py","population":30},{"code":"11278","nom":"Pech-Luna","population":76},{"code":"11281","nom":"Pexiora","population":1266},{"code":"11282","nom":"Peyrefitte-du-Razès","population":54},{"code":"11283","nom":"Peyrefitte-sur-l'Hers","population":75},{"code":"11284","nom":"Peyrens","population":454},{"code":"11287","nom":"Peyrolles","population":91},{"code":"11288","nom":"Pezens","population":1611},{"code":"11289","nom":"Pieusse","population":970},{"code":"11290","nom":"Plaigne","population":119},{"code":"11291","nom":"Plavilla","population":146},{"code":"11292","nom":"La Pomarède","population":188},{"code":"11293","nom":"Pomas","population":1017},{"code":"11294","nom":"Pomy","population":51},{"code":"11299","nom":"Preixan","population":637},{"code":"11300","nom":"Puginier","population":153},{"code":"11302","nom":"Puilaurens","population":277},{"code":"11303","nom":"Puivert","population":491},{"code":"11304","nom":"Quillan","population":2978},{"code":"11306","nom":"Quirbajou","population":49},{"code":"11308","nom":"Raissac-sur-Lampy","population":454},{"code":"11309","nom":"Rennes-le-Château","population":89},{"code":"11310","nom":"Rennes-les-Bains","population":238},{"code":"11311","nom":"Ribaute","population":262},{"code":"11312","nom":"Ribouisse","population":97},{"code":"11313","nom":"Ricaud","population":331},{"code":"11314","nom":"Rieux-en-Val","population":84},{"code":"11316","nom":"Rivel","population":219},{"code":"11317","nom":"Rodome","population":96},{"code":"11320","nom":"Roquefeuil","population":283},{"code":"11321","nom":"Roquefort-de-Sault","population":85},{"code":"11323","nom":"Roquetaillade-et-Conilhac","population":265},{"code":"11325","nom":"Rouffiac-d'Aude","population":514},{"code":"11326","nom":"Rouffiac-des-Corbières","population":75},{"code":"11327","nom":"Roullens","population":588},{"code":"11328","nom":"Routier","population":231},{"code":"11331","nom":"Saint-Amans","population":63},{"code":"11333","nom":"Saint-Benoît","population":109},{"code":"11334","nom":"Sainte-Camelle","population":127},{"code":"11335","nom":"Sainte-Colombe-sur-Guette","population":38},{"code":"11336","nom":"Sainte-Colombe-sur-l'Hers","population":441},{"code":"11338","nom":"Saint-Couat-du-Razès","population":46},{"code":"11339","nom":"Saint-Denis","population":523},{"code":"11340","nom":"Sainte-Eulalie","population":595},{"code":"11341","nom":"Saint-Ferriol","population":118},{"code":"11343","nom":"Saint-Gaudéric","population":108},{"code":"11344","nom":"Saint-Hilaire","population":712},{"code":"11346","nom":"Saint-Jean-de-Paracol","population":139},{"code":"11347","nom":"Saint-Julia-de-Bec","population":98},{"code":"11348","nom":"Saint-Julien-de-Briola","population":79},{"code":"11350","nom":"Saint-Just-et-le-Bézu","population":50},{"code":"11352","nom":"Saint-Louis-et-Parahou","population":55},{"code":"11354","nom":"Saint-Martin-des-Puits","population":30},{"code":"11355","nom":"Saint-Martin-de-Villereglan","population":403},{"code":"11356","nom":"Saint-Martin-Lalande","population":1107},{"code":"11357","nom":"Saint-Martin-le-Vieil","population":211},{"code":"11358","nom":"Saint-Martin-Lys","population":23},{"code":"11359","nom":"Saint-Michel-de-Lanès","population":484},{"code":"11361","nom":"Saint-Papoul","population":835},{"code":"11362","nom":"Saint-Paulet","population":205},{"code":"11363","nom":"Saint-Pierre-des-Champs","population":213},{"code":"11364","nom":"Saint-Polycarpe","population":169},{"code":"11365","nom":"Saint-Sernin","population":38},{"code":"11367","nom":"Saissac","population":904},{"code":"11371","nom":"Salles-sur-l'Hers","population":770},{"code":"11373","nom":"Salvezines","population":70},{"code":"11374","nom":"Salza","population":29},{"code":"11375","nom":"Seignalens","population":30},{"code":"11376","nom":"La Serpent","population":92},{"code":"11377","nom":"Serres","population":89},{"code":"11378","nom":"Serviès-en-Val","population":221},{"code":"11380","nom":"Sonnac-sur-l'Hers","population":137},{"code":"11381","nom":"Sougraigne","population":125},{"code":"11382","nom":"Souilhanels","population":356},{"code":"11383","nom":"Souilhe","population":354},{"code":"11384","nom":"Soulatgé","population":126},{"code":"11385","nom":"Soupex","population":243},{"code":"11386","nom":"Talairan","population":440},{"code":"11387","nom":"Taurize","population":108},{"code":"11388","nom":"Termes","population":48},{"code":"11389","nom":"Terroles","population":14},{"code":"11392","nom":"Tournissan","population":292},{"code":"11394","nom":"Tourreilles","population":128},{"code":"11399","nom":"Tréville","population":110},{"code":"11400","nom":"Tréziers","population":98},{"code":"11401","nom":"Tuchan","population":791},{"code":"11402","nom":"Valmigère","population":28},{"code":"11404","nom":"Ventenac-Cabardès","population":962},{"code":"11406","nom":"Véraza","population":35},{"code":"11407","nom":"Verdun-en-Lauragais","population":290},{"code":"11408","nom":"Verzeille","population":456},{"code":"11409","nom":"Vignevieille","population":107},{"code":"11412","nom":"Villardebelle","population":66},{"code":"11414","nom":"Villar-en-Val","population":23},{"code":"11415","nom":"Villar-Saint-Anselme","population":113},{"code":"11417","nom":"Villarzel-du-Razès","population":100},{"code":"11418","nom":"Villasavary","population":1220},{"code":"11419","nom":"Villautou","population":68},{"code":"11420","nom":"Villebazy","population":140},{"code":"11423","nom":"Villefloure","population":156},{"code":"11424","nom":"Villefort","population":88},{"code":"11427","nom":"Villelongue-d'Aude","population":321},{"code":"11428","nom":"Villemagne","population":236},{"code":"11430","nom":"Villeneuve-la-Comptal","population":1448},{"code":"11432","nom":"Villeneuve-lès-Montréal","population":330},{"code":"11434","nom":"Villepinte","population":1243},{"code":"11435","nom":"Villerouge-Termenès","population":165},{"code":"11437","nom":"Villesèquelande","population":882},{"code":"11438","nom":"Villesiscle","population":362},{"code":"11439","nom":"Villespy","population":419},{"code":"11440","nom":"Villetritouls","population":34}];
+const popByCode = {};
+COMMUNES_INFO.forEach(c => { popByCode[c.code] = c.population; });
+let totalPop = 0;
+const names = {};
+COMMUNES_INFO.forEach(c => { names[c.code] = c.nom; totalPop += c.population || 0; });
+Object.entries(SPLIT_GEOMS).forEach(([code, secs]) => {
+  secs.forEach((sec, i) => { names[code + "#" + i] = sec.nom; popByCode[code + "#" + i] = sec.pop; });
+});
+const UNIT_TOTAL = CIRCO_CODES.size + Object.values(SPLIT_GEOMS).reduce((s, v) => s + v.length - 1, 0);
+function isUnit(c) { return CIRCO_CODES.has(c) || (c.includes("#") && CIRCO_CODES.has(c.split("#")[0])); }
+
+function communeName(code) { return names[code] || code; }
+function populationOf(code) {
+  return popByCode[code] || null;
+}
+
+function fmt(n) { return n.toLocaleString("fr-FR"); }
+function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+function pickColor() {
+  const used = new Set(groupements.map(g => g.color));
+  return PALETTE.find(c => !used.has(c)) || PALETTE[groupements.length % PALETTE.length];
+}
+
+function dedupeColors() {
+  const used = new Set();
+  groupements.forEach(g => {
+    if (used.has(g.color) || !PALETTE.includes(g.color)) {
+      const free = PALETTE.find(c => !used.has(c));
+      if (free) g.color = free;
+    }
+    used.add(g.color);
+  });
+}
+
+document.getElementById("addGroup").onclick = () => {
+  const input = document.getElementById("newGroup");
+  const nom = input.value.trim();
+  if (!nom) return;
+  const color = pickColor();
+  groupements.push({ id: "g" + Date.now(), nom, color, communes: [] });
+  input.value = "";
+  activeGroup = groupements[groupements.length - 1].id;
+  refresh();
+};
+document.getElementById("newGroup").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("addGroup").click(); });
+
+const GA_AP = [
+  { n: "Limoux Causes Communes", c: "11206#0" },
+  { n: "Groupe d'action Limoux et environs", c: "11206#1" },
+  { n: "Résistance - Limoux", c: "11206#2" },
+  { n: "Insoumis chauriens", c: "11276" },
+  { n: "Groupe d'action de La Piège", c: "11291" },
+  { n: "Groupe action Saint Pierre Lagrasse", c: "11363" },
+  { n: "Groupe d'Action des Corbières occidentales", c: "11065" },
+  { n: "Sougraigne", c: "11381" },
+  { n: "Groupe d'action populaire de Bram", c: "11049" },
+  { n: "Montolieu Insoumise", c: "11253" },
+  { n: "HVA (Haute Vallée Audoise)", c: "11103" },
+  { n: "GA Insoumis du Quercorb", c: "11091" }
+];
+document.getElementById("importGA").onclick = () => {
+  let added = 0, assigned = 0;
+  GA_AP.forEach(({ n, c }) => {
+    if (groupements.some(g => g.nom.toLowerCase() === n.toLowerCase())) return;
+    const color = pickColor();
+    const g = { id: "g" + Date.now() + "-" + added, nom: n, color, communes: [] };
+    groupements.push(g);
+    added++;
+    if (!groupements.some(x => x !== g && x.communes.includes(c))) { g.communes.push(c); assigned++; }
+  });
+  if (!added) { showToast("Les GA d'Action Populaire sont déjà présents."); return; }
+  refresh();
+  showToast(`${added} GA d'Action Populaire ajoutés ; ${assigned} commune(s) pré-attribuée(s).`);
+};
+
+document.getElementById("search").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  const q = e.target.value.trim().toLowerCase();
+  if (!q) return;
+  const code = Object.keys(names).find(c => names[c].toLowerCase().includes(q));
+  if (code && geoLayer) {
+    const l = layers[code];
+    map.fitBounds(l.getBounds(), { maxZoom: 11 });
+    l.fire("mouseover");
+    setTimeout(() => l.fire("mouseout"), 1500);
+  } else showToast("Aucune commune trouvée.");
+});
+
+document.getElementById("export").onclick = () => {
+  const data = { version: 1, date: new Date().toISOString(), groupements };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "attribution-territoires-circo3-aude.json";
+  a.click();
+};
+
+document.getElementById("import").onclick = () => document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.groupements)) throw new Error();
+      groupements = data.groupements.filter(g => g.id && g.nom && Array.isArray(g.communes));
+      groupements.forEach(g => { g.communes = [...new Set(g.communes)].filter(c => isUnit(c)); });
+      dedupeColors();
+      activeGroup = null;
+      refresh();
+      showToast("Import réussi.");
+    } catch { showToast("Fichier invalide."); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+};
+
+document.getElementById("reset").onclick = () => {
+  if (!confirm("Effacer toutes les attributions et tous les groupements ?")) return;
+  groupements = [];
+  activeGroup = null;
+  refresh();
+};
+
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ groupements, activeGroup })); } catch {}
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (d && Array.isArray(d.groupements)) {
+      groupements = d.groupements;
+      dedupeColors();
+      activeGroup = d.activeGroup || null;
+    }
+  } catch {}
+}
+
+function escName(s) { return s.replace(/%/g, "%25").replace(/[~:;,]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase()); }
+function unescName(s) { return s.replace(/%([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))); }
+function b64uEncode(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64uDecode(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  return new TextDecoder().decode(Uint8Array.from(atob(s), c => c.charCodeAt(0)));
+}
+function encodeState() {
+  return groupements.map(g => {
+    const i = PALETTE.indexOf(g.color);
+    return escName(g.nom) + (i > 0 ? "~" + i : "") + ":" + g.communes.map(c => c.slice(2)).join(",");
+  }).join(";");
+}
+function decodeState(txt) {
+  return txt.split(";").filter(Boolean).map(part => {
+    const ci = part.lastIndexOf(":");
+    const head = ci >= 0 ? part.slice(0, ci) : part;
+    const codes = ci >= 0 ? part.slice(ci + 1) : "";
+    const ti = head.indexOf("~");
+    return {
+      n: unescName(ti >= 0 ? head.slice(0, ti) : head),
+      i: ti >= 0 ? (parseInt(head.slice(ti + 1), 10) || 0) : 0,
+      m: codes ? codes.split(",").map(c => "11" + c) : []
+    };
+  });
+}
+
+document.getElementById("share").onclick = () => {
+  if (!groupements.length) { showToast("Rien à partager : attribuez d'abord des communes."); return; }
+  const payload = b64uEncode(encodeState());
+  const u = new URL(".", location.href);
+  const base = (location.origin && location.origin !== "null" ? u.origin + u.pathname : "");
+  const url = base + "#z=" + payload;
+  const finish = () => showToast("Lien copié ! Collez-le dans un message pour partager cet état de la carte.");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(finish, () => prompt("Copiez ce lien :", url));
+  } else prompt("Copiez ce lien :", url);
+};
+
+const helpOverlay = document.getElementById("helpOverlay");
+document.getElementById("helpBtn").onclick = () => { helpOverlay.style.display = "flex"; };
+document.getElementById("helpClose").onclick = () => {
+  helpOverlay.style.display = "none";
+  try { localStorage.setItem(STORAGE_KEY + "-aide", "1"); } catch {}
+};
+
+load();
+(function loadFromHash() {
+  const mz = location.hash.match(/^#z=(.+)$/);
+  const md = location.hash.match(/^#d=(.+)$/);
+  if (!mz && !md) return;
+  try {
+    const data = mz ? decodeState(b64uDecode(mz[1])) : JSON.parse(decodeURIComponent(escape(atob(md[1]))));
+    if (!Array.isArray(data)) return;
+    const loaded = data
+      .filter(g => g && typeof g.n === "string" && Array.isArray(g.m))
+      .map(g => ({
+        id: "g" + Math.random().toString(36).slice(2),
+        nom: g.n,
+        color: PALETTE[(Number.isInteger(g.i) && g.i >= 0 && g.i < PALETTE.length) ? g.i : 0],
+        communes: [...new Set(g.m)].filter(c => isUnit(c))
+      }));
+    if (loaded.length) {
+      groupements = loaded;
+      dedupeColors();
+      activeGroup = null;
+      save();
+      setTimeout(() => showToast("Carte chargée depuis un lien partagé."), 400);
+    }
+  } catch {}
+})();
+renderGroupements();
+</script>
 </body>
 </html>
