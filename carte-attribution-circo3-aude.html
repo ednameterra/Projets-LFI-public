@@ -4,87 +4,90 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Attribution des territoires — 3ᵉ circonscription de l'Aude</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;900&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; font-family: "Segoe UI", system-ui, sans-serif; }
+  html, body { height: 100%; font-family: "Public Sans", system-ui, sans-serif; }
 
   #app { display: flex; height: 100vh; }
 
   #sidebar {
     width: 340px; flex-shrink: 0;
-    background: #14161a; color: #e8e8e8;
+    background: #4C0297; color: #FFFCF4;
     display: flex; flex-direction: column;
   }
-  #sidebar header { padding: 16px 18px 12px; border-bottom: 1px solid #2a2d33; }
-  #sidebar header h1 { font-size: 1.05rem; color: #ff4136; }
-  #sidebar header p { font-size: 0.75rem; color: #9aa0a6; margin-top: 3px; }
+  #sidebar header { padding: 16px 18px 12px; border-bottom: 1px solid rgba(255,252,244,.28); }
+  #sidebar header h1 { font-size: 1.05rem; font-weight: 900; color: #FFFCF4; text-transform: uppercase; letter-spacing: .02em; }
+  #sidebar header p { font-size: 0.75rem; color: #d9c7f2; margin-top: 3px; }
 
   #sidebar .content { flex: 1; overflow-y: auto; padding: 12px 18px 18px; }
   .section-title {
     font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em;
-    color: #8a8f98; margin: 16px 0 8px;
+    color: #c9a8ee; margin: 16px 0 8px;
   }
   .section-title:first-child { margin-top: 4px; }
 
   #search {
     width: 100%; padding: 8px 11px; font-size: 0.88rem;
-    border-radius: 8px; border: 1px solid #33373d;
-    background: #1d2026; color: #e8e8e8; outline: none;
+    border-radius: 8px; border: 1px solid #7b13d6;
+    background: #FFFCF4; color: #212320; outline: none;
   }
-  #search:focus { border-color: #ff4136; }
+  #search:focus { border-color: #f9c900; }
 
   .brush { display: flex; flex-direction: column; gap: 5px; }
   .brush-item {
     display: flex; align-items: center; gap: 9px;
     padding: 8px 10px; border-radius: 9px; cursor: pointer;
-    border: 1px solid #2a2d33; background: #1d2026; font-size: 0.88rem;
+    border: 1px solid #8a4fd0; background: #5d0b77; font-size: 0.88rem;
   }
-  .brush-item:hover { border-color: #55595f; }
-  .brush-item.active { border-color: currentColor; background: #26292f; }
+  .brush-item:hover { border-color: #FFFCF4; }
+  .brush-item.active { border-color: currentColor; background: #6d1cae; }
   .brush-item .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; }
-  .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #9aa0a6; text-align: right; line-height: 1.3; }
+  .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #d9c7f2; text-align: right; line-height: 1.3; }
   .brush-item .del {
-    border: none; background: none; color: #6a6f76; cursor: pointer;
+    border: none; background: none; color: #c9a8ee; cursor: pointer;
     font-size: 0.95rem; padding: 2px 4px; border-radius: 5px; flex-shrink: 0;
   }
-  .brush-item .del:hover { color: #ff4136; background: #2a2d33; }
+  .brush-item .del:hover { color: #f9c900; background: #4C0297; }
 
   .row { display: flex; gap: 6px; margin-top: 8px; }
   input[type="text"].newg {
     flex: 1; padding: 7px 10px; font-size: 0.85rem;
-    border-radius: 8px; border: 1px solid #33373d;
-    background: #1d2026; color: #e8e8e8; outline: none;
+    border-radius: 8px; border: 1px solid #7b13d6;
+    background: #FFFCF4; color: #212320; outline: none;
   }
   button {
     padding: 7px 13px; font-size: 0.82rem; border: none; border-radius: 8px;
-    background: #ff4136; color: #fff; cursor: pointer; font-weight: 600;
+    background: #D1271C; color: #fff; cursor: pointer; font-weight: 700;
   }
-  button.ghost { background: #2a2d33; color: #c9cdd2; font-weight: 400; }
-  button.ghost:hover { background: #33373d; }
+  button.ghost { background: transparent; color: #FFFCF4; font-weight: 400; border: 1px solid rgba(255,252,244,.5); }
+  button.ghost:hover { background: rgba(255,252,244,.12); }
   button:hover { filter: brightness(1.1); }
 
-  #stats { font-size: 0.78rem; color: #9aa0a6; line-height: 1.7; }
-  #stats b { color: #e8e8e8; }
+  #stats { font-size: 0.78rem; color: #d9c7f2; line-height: 1.7; }
+  #stats b { color: #FFFCF4; }
 
   .hint {
-    font-size: 0.75rem; color: #9aa0a6; background: #1d2026;
-    border: 1px solid #2a2d33; border-radius: 9px; padding: 9px 11px; line-height: 1.5;
+    font-size: 0.75rem; color: #f2e6fd; background: #5d0b77;
+    border: 1px solid #8a4fd0; border-radius: 9px; padding: 9px 11px; line-height: 1.5;
     margin-bottom: 6px;
   }
-  .hint b { color: #ff4136; }
+  .hint b { color: #f9c900; }
 
   #map { flex: 1; }
   #status {
     position: absolute; z-index: 1000; top: 10px; left: 50%; transform: translateX(-50%);
-    background: #14161aee; color: #e8e8e8; padding: 7px 16px; border-radius: 20px;
-    font-size: 0.82rem; border: 1px solid #2a2d33; pointer-events: none;
+    background: #4C0297ee; color: #FFFCF4; padding: 7px 16px; border-radius: 20px;
+    font-size: 0.82rem; border: 1px solid #7b13d6; pointer-events: none;
   }
-  .leaflet-container { background: #e8e4dc; }
+  .leaflet-container { background: #FFFCF4; }
 
   #toast {
     position: fixed; z-index: 2000; bottom: 22px; left: 50%; transform: translateX(-50%);
-    background: #ff4136; color: #fff; padding: 10px 18px; border-radius: 10px;
+    background: #D1271C; color: #fff; padding: 10px 18px; border-radius: 10px;
     font-size: 0.85rem; font-weight: 600; opacity: 0; transition: opacity .25s;
     pointer-events: none; max-width: 80%;
   }
@@ -93,41 +96,41 @@
   #helpBtn {
     position: fixed; z-index: 2500; bottom: 22px; right: 22px;
     width: 38px; height: 38px; border-radius: 50%;
-    border: 1px solid #2a2d33; background: #1d2026; color: #e8e8e8;
+    border: 1px solid #7b13d6; background: #4C0297; color: #FFFCF4;
     font-size: 1rem; cursor: pointer;
   }
-  #helpBtn:hover { background: #26292f; }
+  #helpBtn:hover { background: #5d0b77; }
 
   #helpOverlay {
-    position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.65);
+    position: fixed; inset: 0; z-index: 3000; background: rgba(33,35,32,.7);
     display: flex; align-items: center; justify-content: center;
   }
   #helpOverlay .card {
-    background: #1d2026; color: #e8e8e8; border: 1px solid #2a2d33;
+    background: #FFFCF4; color: #212320; border: 1px solid #4C0297;
     border-radius: 14px; max-width: 440px; width: 90%; padding: 22px 24px;
   }
-  #helpOverlay h2 { font-size: 1rem; color: #ff4136; margin-bottom: 10px; }
-  #helpOverlay ol { margin: 0 0 14px 18px; font-size: .88rem; line-height: 1.7; color: #c9cdd2; }
-  #helpOverlay ol b { color: #e8e8e8; }
+  #helpOverlay h2 { font-size: 1rem; color: #D1271C; margin-bottom: 10px; }
+  #helpOverlay ol { margin: 0 0 14px 18px; font-size: .88rem; line-height: 1.7; color: #3d3f3c; }
+  #helpOverlay ol b { color: #212320; }
 
   .commune-list {
-    border: 1px solid #23262b; border-radius: 9px; background: #171a1f;
+    border: 1px solid #d9c7f2; border-radius: 9px; background: #faf6ff;
     padding: 4px 6px; display: flex; flex-direction: column; gap: 1px;
     max-height: 180px; overflow-y: auto;
   }
   .cl-row {
     display: flex; align-items: center; gap: 6px;
-    font-size: .78rem; color: #c9cdd2; padding: 3px 4px; border-radius: 6px;
+    font-size: .78rem; color: #3d3f3c; padding: 3px 4px; border-radius: 6px;
   }
-  .cl-row:hover { background: #22262c; }
+  .cl-row:hover { background: #f1e8fb; }
   .cl-name { cursor: pointer; flex: 1; }
-  .cl-name:hover { color: #fff; text-decoration: underline; }
+  .cl-name:hover { color: #4C0297; text-decoration: underline; }
   .cl-del {
-    border: none; background: none; color: #6a6f76; cursor: pointer;
+    border: none; background: none; color: #9a9b98; cursor: pointer;
     font-size: .75rem; padding: 1px 4px; border-radius: 4px; flex-shrink: 0;
   }
-  .cl-del:hover { color: #ff4136; }
-  .cl-empty { font-size: .75rem; color: #6a6f76; padding: 3px 4px; font-style: italic; }
+  .cl-del:hover { color: #D1271C; }
+  .cl-empty { font-size: .75rem; color: #9a9b98; padding: 3px 4px; font-style: italic; }
 
   .hatch-fill {
     fill: url(#hatchPart) !important;
@@ -135,8 +138,8 @@
     stroke: none !important;
   }
   .partiel-tip {
-    background: #14161aee; color: #ffd7d4;
-    border: 1px solid #ff4136; border-radius: 8px;
+    background: #4C0297f0; color: #ffe9e7;
+    border: 1px solid #D1271C; border-radius: 8px;
     font-size: .72rem; font-weight: 600; padding: 3px 8px;
     box-shadow: none;
   }
@@ -148,10 +151,10 @@
   .popup-actions { margin-top: 8px; display: flex; flex-direction: column; gap: 5px; }
   .popup-actions button {
     padding: 6px 10px; font-size: 0.78rem; text-align: left; border-radius: 7px;
-    background: #f1f1f1; color: #222;
+    background: #FFFCF4; color: #212320;
   }
-  .popup-actions button:hover { background: #e2e2e2; }
-  .popup-actions button.current { background: #222; color: #fff; cursor: default; }
+  .popup-actions button:hover { background: #f1e8fb; }
+  .popup-actions button.current { background: #4C0297; color: #fff; cursor: default; }
 
   @media (max-width: 700px) {
     #app { flex-direction: column; }
@@ -215,7 +218,7 @@
 </div>
 <svg width="0" height="0" style="position:absolute"><defs>
 <pattern id="hatchPart" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">
-  <line x1="0" y1="0" x2="0" y2="7" stroke="#14161a" stroke-width="2.5"/>
+  <line x1="0" y1="0" x2="0" y2="7" stroke="#212320" stroke-width="2.5"/>
 </pattern>
 </defs></svg>
 <div id="toast"></div>
@@ -224,7 +227,7 @@
 <script>
 const CIRCO_CODES = new Set(["11002","11003","11004","11005","11007","11008","11009","11010","11011","11015","11016","11017","11018","11019","11020","11021","11026","11028","11029","11030","11031","11032","11033","11034","11035","11036","11038","11039","11044","11045","11046","11047","11049","11051","11052","11053","11054","11055","11057","11058","11059","11060","11061","11062","11063","11065","11066","11069","11070","11072","11073","11074","11076","11078","11080","11082","11083","11084","11087","11089","11090","11091","11093","11094","11096","11100","11101","11103","11104","11105","11107","11108","11109","11112","11113","11114","11115","11117","11118","11119","11120","11121","11123","11127","11128","11129","11130","11131","11133","11134","11135","11136","11137","11138","11139","11141","11142","11147","11149","11150","11153","11155","11156","11158","11159","11160","11161","11162","11163","11165","11166","11167","11168","11169","11173","11175","11177","11178","11179","11181","11182","11183","11184","11185","11186","11187","11189","11191","11192","11193","11195","11196","11197","11199","11204","11206","11207","11208","11209","11211","11213","11214","11216","11218","11219","11224","11225","11226","11227","11228","11229","11230","11231","11234","11235","11236","11238","11239","11240","11242","11243","11244","11245","11246","11247","11249","11250","11251","11252","11253","11254","11259","11260","11263","11265","11268","11270","11271","11274","11275","11276","11277","11278","11281","11282","11283","11284","11287","11288","11289","11290","11291","11292","11293","11294","11299","11300","11302","11303","11304","11306","11308","11309","11310","11311","11312","11313","11314","11316","11317","11320","11321","11323","11325","11326","11327","11328","11331","11333","11334","11335","11336","11338","11339","11340","11341","11343","11344","11346","11347","11348","11350","11352","11354","11355","11356","11357","11358","11359","11361","11362","11363","11364","11365","11367","11371","11373","11374","11375","11376","11377","11378","11380","11381","11382","11383","11384","11385","11386","11387","11388","11389","11392","11394","11399","11400","11401","11402","11404","11406","11407","11408","11409","11412","11414","11415","11417","11418","11419","11420","11423","11424","11427","11428","11430","11432","11434","11435","11437","11438","11439","11440"]);
 
-const PALETTE = ["#ff4136","#2d7ff9","#18b26b","#f5a623","#9b59b6","#00b8d4","#e91e8c","#8bc34a","#ff7043","#795548","#607d8b","#cddc39"];
+const PALETTE = ["#7b13d6","#f91616","#3885f4","#ed5fb1","#f9c900","#2e9959"];
 const STORAGE_KEY = "lfi-circo3-aude-v1";
 const PARTIELLES = { "11069": "Carcassonne" };
 const PARTIAL_GEOM = {"type":"Polygon","coordinates":[[[2.30679,43.179092],[2.3069,43.1784],[2.30738,43.177177],[2.30725,43.176704],[2.307368,43.175824],[2.303517,43.175824],[2.3017,43.1759],[2.3009,43.1763],[2.2989,43.1771],[2.295908,43.177998],[2.2966,43.1784],[2.294384,43.17844],[2.293037,43.178823],[2.2924,43.1796],[2.28992,43.18007],[2.289422,43.180551],[2.288926,43.18082],[2.287756,43.181219],[2.284919,43.181697],[2.285815,43.182515],[2.287213,43.183583],[2.289228,43.185496],[2.2905,43.1864],[2.2906,43.1867],[2.290627,43.187348],[2.2905,43.1886],[2.290379,43.188628],[2.2897,43.1883],[2.288418,43.187234],[2.287792,43.186908],[2.285239,43.186308],[2.285122,43.190604],[2.2866,43.1909],[2.286728,43.191057],[2.2883,43.1911],[2.290143,43.191317],[2.2901,43.192],[2.29,43.1923],[2.2901,43.1934],[2.2906,43.1948],[2.2907,43.1955],[2.2906,43.1958],[2.290627,43.196167],[2.291,43.1966],[2.2919,43.198],[2.2917,43.1984],[2.291111,43.19875],[2.2908,43.1988],[2.2897,43.1993],[2.289,43.1992],[2.288359,43.199231],[2.287437,43.1995],[2.2871,43.1997],[2.286823,43.199631],[2.28612,43.19892],[2.2848,43.1994],[2.284661,43.199313],[2.283597,43.197748],[2.2823,43.1982],[2.2819,43.1985],[2.2808,43.1988],[2.2803,43.1991],[2.279147,43.199213],[2.278163,43.199427],[2.2755,43.2006],[2.274854,43.200812],[2.276272,43.203429],[2.272432,43.204244],[2.269987,43.203111],[2.2688,43.203],[2.268191,43.203037],[2.267198,43.207414],[2.266935,43.207959],[2.2665,43.2097],[2.2661,43.2109],[2.2644,43.2141],[2.262756,43.216288],[2.2625,43.2168],[2.262221,43.217021],[2.264788,43.219868],[2.2652,43.2198],[2.267,43.2198],[2.267955,43.22008],[2.269916,43.22109],[2.271771,43.221058],[2.273933,43.221351],[2.2754,43.2227],[2.274917,43.222893],[2.277146,43.224424],[2.276713,43.224813],[2.2777,43.2258],[2.276201,43.226339],[2.275917,43.226519],[2.276922,43.227594],[2.2774,43.2284],[2.277702,43.229094],[2.276745,43.22942],[2.277194,43.230308],[2.2759,43.2308],[2.263883,43.234233],[2.261721,43.234992],[2.2623,43.2358],[2.262331,43.23616],[2.262744,43.237285],[2.2635,43.2387],[2.268155,43.238882],[2.268203,43.238964],[2.269136,43.238687],[2.2741,43.2413],[2.2754,43.2434],[2.275497,43.2443],[2.276166,43.244204],[2.280171,43.242762],[2.281187,43.242167],[2.284461,43.240693],[2.286,43.2394],[2.2891,43.2375],[2.2894,43.2377],[2.295988,43.233708],[2.295955,43.23343],[2.2968,43.232572],[2.2965,43.2322],[2.296546,43.232158],[2.3018,43.2305],[2.3022,43.2309],[2.309152,43.227456],[2.309483,43.227667],[2.3098,43.2276],[2.310805,43.2276],[2.3134,43.227],[2.3153,43.227],[2.315225,43.228515],[2.3151,43.2286],[2.314528,43.228654],[2.31903,43.229355],[2.322633,43.230357],[2.324807,43.231278],[2.327512,43.227284],[2.327383,43.225728],[2.327583,43.224562],[2.327123,43.222851],[2.328777,43.222166],[2.32919,43.220332],[2.331553,43.219542],[2.331943,43.21924],[2.332605,43.218898],[2.333443,43.218164],[2.333845,43.21748],[2.334684,43.21752],[2.33635,43.217993],[2.337319,43.217692],[2.338252,43.217048],[2.339646,43.217414],[2.339776,43.217537],[2.340591,43.217594],[2.341099,43.217724],[2.341312,43.217675],[2.342257,43.217977],[2.342813,43.218009],[2.343072,43.218115],[2.34351,43.217985],[2.343864,43.218018],[2.344726,43.2177],[2.344963,43.21783],[2.345282,43.217757],[2.345294,43.217496],[2.345412,43.217309],[2.345565,43.217219],[2.34579,43.217374],[2.346239,43.217145],[2.346487,43.216738],[2.34657,43.216436],[2.347172,43.216518],[2.347645,43.216714],[2.348342,43.216648],[2.348342,43.215947],[2.347869,43.215613],[2.34755,43.214774],[2.347515,43.214211],[2.347243,43.213771],[2.346877,43.213453],[2.34657,43.213005],[2.346475,43.212679],[2.34677,43.212264],[2.346664,43.212166],[2.346759,43.211506],[2.347042,43.211302],[2.347066,43.211098],[2.347373,43.210682],[2.348212,43.210519],[2.349618,43.210528],[2.34996,43.210234],[2.350244,43.210544],[2.350527,43.210568],[2.350835,43.210707],[2.351154,43.210707],[2.351579,43.210536],[2.35178,43.210193],[2.35269,43.209721],[2.352796,43.209264],[2.351626,43.208278],[2.351662,43.207512],[2.351792,43.207422],[2.351886,43.206893],[2.351827,43.206526],[2.351579,43.206175],[2.351969,43.20602],[2.352323,43.205751],[2.352229,43.205548],[2.351165,43.205931],[2.350799,43.205784],[2.34989,43.206485],[2.348803,43.206135],[2.348625,43.205784],[2.346203,43.202483],[2.341985,43.19959],[2.34052,43.199875],[2.339256,43.200747],[2.335145,43.202679],[2.33088,43.202671],[2.329391,43.201815],[2.329119,43.201456],[2.329001,43.201204],[2.329048,43.20047],[2.329533,43.19972],[2.331081,43.199345],[2.337768,43.198066],[2.329793,43.188848],[2.330466,43.185873],[2.33041,43.185382],[2.329486,43.185726],[2.3284,43.1842],[2.328322,43.1842],[2.327383,43.18514],[2.326355,43.185946],[2.3234,43.1886],[2.3229,43.1885],[2.3223,43.1885],[2.322,43.1883],[2.321652,43.187813],[2.3215,43.1874],[2.3215,43.187],[2.321593,43.186696],[2.3219,43.1863],[2.322562,43.185629],[2.322917,43.184871],[2.322915,43.184062],[2.322409,43.183241],[2.322101,43.182923],[2.321062,43.182132],[2.3195,43.1815],[2.318774,43.1813],[2.318492,43.1813],[2.3172,43.1817],[2.3152,43.1826],[2.314,43.1829],[2.313122,43.18333],[2.3128,43.1834],[2.3123,43.1834],[2.3104,43.183],[2.3093,43.1826],[2.3084,43.182],[2.3078,43.1814],[2.307262,43.180714],[2.3068,43.1797],[2.30679,43.179092]],[[2.345636,43.210446],[2.345908,43.21043],[2.346168,43.210087],[2.346511,43.21047],[2.346274,43.210731],[2.345258,43.210837],[2.345022,43.210381],[2.344845,43.210674],[2.344502,43.210796],[2.344018,43.210144],[2.344041,43.210079],[2.344348,43.210079],[2.345034,43.210356],[2.345424,43.210568],[2.345636,43.210446]]]};
@@ -278,7 +281,7 @@ function build(gj) {
       layers[code] = layer;
       layer.on("click", () => onCommuneClick(code));
       layer.on("mouseover", () => layer.setStyle({ weight: 2.5, color: "#ffffff" }));
-      layer.on("mouseout", () => layer.setStyle({ weight: 1, color: "#3a3d42" }));
+      layer.on("mouseout", () => layer.setStyle({ weight: 1, color: "#212320" }));
       if (PARTIELLES[code]) layer.bindTooltip("⚠ " + communeName(code) + " — partagée", { permanent: true, direction: "center", className: "partiel-tip" });
     }
   }).addTo(map);
@@ -297,9 +300,9 @@ function build(gj) {
 function styleFor(code) {
   const g = groupements.find(g => g.communes.includes(code));
   return {
-    fillColor: g ? g.color : "#2a2d33",
+    fillColor: g ? g.color : "#212320",
     fillOpacity: g ? 0.75 : 0.35,
-    color: "#3a3d42",
+    color: "#212320",
     weight: 1,
     dashArray: PARTIELLES[code] ? "5 4" : null
   };
@@ -358,7 +361,7 @@ function renderGroupements() {
   const erase = document.createElement("div");
   erase.className = "brush-item" + (activeGroup === "erase" ? " active" : "");
   erase.style.color = "#e8e8e8";
-  erase.innerHTML = `<span class="swatch" style="background:#2a2d33;border:1px solid #55595f"></span> Gomme (libérer une commune)`;
+  erase.innerHTML = `<span class="swatch" style="background:#212320;border:1px solid #5a5b57"></span> Gomme (libérer une commune)`;
   erase.onclick = () => { activeGroup = "erase"; renderGroupements(); };
   box.appendChild(erase);
 
