@@ -92,6 +92,17 @@
   }
   .leaflet-container { background: #FFFCF4; }
 
+  #hoverInfo {
+    position: absolute; z-index: 1000; bottom: 14px; left: 14px;
+    background: #FFFCF4f5; color: #212320; border: 1px solid #4C0297;
+    border-radius: 10px; padding: 8px 14px; font-size: 0.9rem;
+    pointer-events: none; display: none; box-shadow: 0 2px 10px #21232033;
+    max-width: 280px; line-height: 1.35;
+  }
+  #hoverInfo .hi-name { font-weight: 700; }
+  #hoverInfo .hi-sub { font-size: 0.8rem; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+  #hoverInfo .hi-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; border: 1px solid #21232055; }
+
   #toast {
     position: fixed; z-index: 2000; bottom: 22px; left: 50%; transform: translateX(-50%);
     background: #D1271C; color: #fff; padding: 10px 18px; border-radius: 10px;
@@ -208,7 +219,7 @@
       <input id="fileInput" type="file" accept=".json" style="display:none">
     </div>
   </div>
-  <div id="map"><div id="status">Chargement des contours des communes…</div></div>
+  <div id="map"><div id="status">Chargement des contours des communes…</div><div id="hoverInfo"></div></div>
 </div>
 <button id="helpBtn" title="Aide">?</button>
 <div id="helpOverlay" style="display:none">
@@ -293,6 +304,20 @@ fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geomet
       "Impossible de charger les contours (geo.api.gouv.fr). Vérifiez la connexion puis rechargez la page.";
   });
 
+const hoverInfo = document.getElementById("hoverInfo");
+function showHover(code) {
+  const g = groupements.find(g => g.communes.includes(code));
+  const pop = populationOf(code);
+  const popTxt = pop ? " · " + pop.toLocaleString("fr-FR") + " hab" : "";
+  hoverInfo.innerHTML =
+    `<div class="hi-name">${escapeHtml(communeName(code))}</div>` +
+    (g
+      ? `<div class="hi-sub"><span class="hi-dot" style="background:${g.color}"></span><span>${escapeHtml(g.nom)}${popTxt}</span></div>`
+      : `<div class="hi-sub">Commune libre${popTxt}</div>`);
+  hoverInfo.style.display = "block";
+}
+function hideHover() { hoverInfo.style.display = "none"; }
+
 function build(gj) {
   gj.features.forEach(f => { if (PARTIAL_GEOM && f.properties.code === "11069") f.geometry = PARTIAL_GEOM; });
   geoLayer = L.geoJSON(gj, {
@@ -301,8 +326,8 @@ function build(gj) {
       const code = f.properties.code;
       layers[code] = layer;
       layer.on("click", () => onCommuneClick(code));
-      layer.on("mouseover", () => layer.setStyle({ weight: 2.5, color: "#ffffff" }));
-      layer.on("mouseout", () => layer.setStyle({ weight: 1, color: "#212320" }));
+      layer.on("mouseover", () => { layer.setStyle({ weight: 2.5, color: "#ffffff" }); showHover(code); });
+      layer.on("mouseout", () => { layer.setStyle({ weight: 1, color: "#212320" }); hideHover(); });
       if (PARTIELLES[code]) layer.bindTooltip("⚠ " + communeName(code) + " — partagée", { permanent: true, direction: "center", className: "partiel-tip" });
     }
   }).addTo(map);
