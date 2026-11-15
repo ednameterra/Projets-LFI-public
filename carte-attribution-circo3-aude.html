@@ -80,7 +80,7 @@
     background: #14161aee; color: #e8e8e8; padding: 7px 16px; border-radius: 20px;
     font-size: 0.82rem; border: 1px solid #2a2d33; pointer-events: none;
   }
-  .leaflet-container { background: #0e0f11; }
+  .leaflet-container { background: #e8e4dc; }
 
   #toast {
     position: fixed; z-index: 2000; bottom: 22px; left: 50%; transform: translateX(-50%);
@@ -160,11 +160,26 @@ let layers = {};
 let geoLayer = null;
 
 const map = L.map("map", { zoomControl: true });
-L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-  maxZoom: 19,
-  subdomains: "abcd",
-  attribution: "&copy; OpenStreetMap &copy; CARTO"
-}).addTo(map);
+const TILE_SOURCES = [
+  { url: "https://tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png", maxZoom: 19, attribution: "&copy; OpenStreetMap France" },
+  { url: "https://tile.openstreetmap.de/{z}/{x}/{y}.png", maxZoom: 18, attribution: "&copy; OpenStreetMap Deutschland" },
+  { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 19, attribution: "Tiles &copy; Esri" }
+];
+let tileIdx = 0, tileErrors = 0, tileLayer = null;
+function addTileLayer() {
+  const src = TILE_SOURCES[tileIdx];
+  tileLayer = L.tileLayer(src.url, { maxZoom: src.maxZoom, attribution: src.attribution });
+  tileLayer.on("tileerror", () => {
+    tileErrors++;
+    if (tileErrors >= 5 && tileIdx < TILE_SOURCES.length - 1) {
+      tileIdx++; tileErrors = 0;
+      map.removeLayer(tileLayer);
+      addTileLayer();
+    }
+  });
+  tileLayer.addTo(map);
+}
+addTileLayer();
 
 fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geometry=contour")
   .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
