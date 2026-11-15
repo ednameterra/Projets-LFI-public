@@ -126,6 +126,7 @@
   #helpOverlay .card {
     background: #FFFCF4; color: #212320; border: 1px solid #4C0297;
     border-radius: 14px; max-width: 440px; width: 90%; padding: 22px 24px;
+    max-height: 90vh; overflow-y: auto; position: relative;
   }
   #helpOverlay h2 { font-size: 1rem; color: #D1271C; margin-bottom: 10px; }
   #helpOverlay ol { margin: 0 0 14px 18px; font-size: .88rem; line-height: 1.7; color: #3d3f3c; }
@@ -178,7 +179,14 @@
   #actionOverlay .card {
     background: #FFFCF4; color: #212320; border: 1px solid #4C0297;
     border-radius: 14px; max-width: 400px; width: 90%; padding: 20px 22px;
+    max-height: 90vh; overflow-y: auto; position: relative;
   }
+  #actionClose {
+    position: absolute; top: 10px; right: 12px;
+    border: none; background: none; color: #9a9b98; cursor: pointer;
+    font-size: 1.05rem; line-height: 1; padding: 4px 6px; border-radius: 6px;
+  }
+  #actionClose:hover { color: #D1271C; background: #f1e8fb; }
   #actionOverlay h2 { font-size: 1rem; color: #D1271C; margin-bottom: 6px; }
   #actionOverlay label { display: block; font-size: .76rem; font-weight: 700; margin: 9px 0 3px; }
   #actionOverlay input, #actionOverlay select {
@@ -268,6 +276,7 @@
 </div>
 <div id="actionOverlay" style="display:none">
   <div class="card">
+    <button id="actionClose" title="Fermer">✕</button>
     <h2 id="actionFormTitle">Nouvelle action</h2>
     <label>Titre *</label>
     <input id="agTitre" type="text" maxlength="120" placeholder="Ex. Tractage au marché de Limoux">
@@ -921,7 +930,7 @@ function openActionForm(a) {
   const sel = document.getElementById("agGid");
   sel.innerHTML = `<option value="">— Aucun —</option>` + groupements.map(g => `<option value="${g.id}">${escapeHtml(g.nom)}</option>`).join("");
   document.getElementById("agTitre").value = a ? a.titre : "";
-  document.getElementById("agDate").value = a ? a.date : "";
+  document.getElementById("agDate").value = a ? a.date : todayStr();
   document.getElementById("agHeure").value = a && a.heure ? a.heure : "";
   document.getElementById("agLieu").value = a && a.lieu ? a.lieu : "";
   sel.value = a && a.gid && groupements.some(g => g.id === a.gid) ? a.gid : "";
@@ -930,6 +939,14 @@ function openActionForm(a) {
 }
 document.getElementById("addAction").onclick = () => openActionForm(null);
 document.getElementById("agCancel").onclick = () => { document.getElementById("actionOverlay").style.display = "none"; };
+document.getElementById("actionClose").onclick = () => { document.getElementById("actionOverlay").style.display = "none"; };
+document.getElementById("actionOverlay").onclick = e => { if (e.target === document.getElementById("actionOverlay")) { document.getElementById("actionOverlay").style.display = "none"; } };
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    document.getElementById("actionOverlay").style.display = "none";
+    helpOverlay.style.display = "none";
+  }
+});
 document.getElementById("agSave").onclick = () => {
   const titre = document.getElementById("agTitre").value.trim();
   const date = document.getElementById("agDate").value;
