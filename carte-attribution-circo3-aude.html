@@ -508,6 +508,85 @@ Object.entries(SPLIT_GEOMS).forEach(([code, secs]) => {
 const UNIT_TOTAL = CIRCO_CODES.size + Object.values(SPLIT_GEOMS).reduce((s, v) => s + v.length - 1, 0);
 function isUnit(c) { return CIRCO_CODES.has(c) || (c.includes("#") && CIRCO_CODES.has(c.split("#")[0])); }
 
+const UNIT_CODES = [];
+CIRCO_CODES.forEach(code => {
+  if (SPLIT_GEOMS[code]) SPLIT_GEOMS[code].forEach((s, i) => UNIT_CODES.push(code + "#" + i));
+  else UNIT_CODES.push(code);
+});
+
+function encodeStateBinary() {
+  const bytes = [1];
+  const pushVarint = v => { while (v > 127) { bytes.push((v & 127) | 128); v >>>= 7; } bytes.push(v); };
+  const gaGroups = [], customGroups = [];
+  groupements.forEach(g => {
+    const gi = GA_AP.findIndex(a => a.n === g.nom);
+    (gi >= 0 ? gaGroups : customGroups).push({ g, gi });
+  });
+  let b0 = 0, b1 = 0;
+  gaGroups.forEach(({ gi }) => { if (gi < 8) b0 |= 1 << gi; else b1 |= 1 << (gi - 8); });
+  bytes.push(b0, b1);
+  const nibbles = [];
+  for (let gi = 0; gi < GA_AP.length; gi++) {
+    const e = gaGroups.find(x => x.gi === gi);
+    if (e) nibbles.push(Math.max(0, PALETTE.indexOf(e.g.color)) & 15);
+  }
+  for (let i = 0; i < nibbles.length; i += 2) bytes.push((nibbles[i] << 4) | (i + 1 < nibbles.length ? nibbles[i + 1] : 0));
+  pushVarint(customGroups.length);
+  customGroups.forEach(({ g }) => {
+    const nb = new TextEncoder().encode(g.nom);
+    pushVarint(nb.length);
+    nb.forEach(b => bytes.push(b));
+    bytes.push(Math.max(0, PALETTE.indexOf(g.color)) & 15);
+  });
+  const order = [...gaGroups.sort((a, b) => a.gi - b.gi).map(x => x.g), ...customGroups.map(x => x.g)];
+  const owner = new Map();
+  order.forEach(g => g.communes.forEach(c => { const i = UNIT_CODES.indexOf(c); if (i >= 0 && !owner.has(i)) owner.set(i, g); }));
+  order.forEach(g => g.communes.forEach(c => {
+    if (UNIT_CODES.indexOf(c) >= 0 || c.includes("#") || !SPLIT_GEOMS[c]) return;
+    for (let k = 0; k < SPLIT_GEOMS[c].length; k++) {
+      const cand = UNIT_CODES.indexOf(c + "#" + k);
+      if (cand >= 0 && !owner.has(cand)) { owner.set(cand, g); break; }
+    }
+  }));
+  order.forEach(g => {
+    const idxs = [...owner.entries()].filter(([, og]) => og === g).map(([i]) => i).sort((a, b) => a - b);
+    pushVarint(idxs.length);
+    let prev = 0;
+    idxs.forEach(i => { pushVarint(i - prev); prev = i; });
+  });
+  return new Uint8Array(bytes);
+}
+function decodeStateBinary(bytes) {
+  if (!bytes.length || bytes[0] !== 1) return null;
+  let p = 1;
+  const readVarint = () => { let v = 0, s = 0, b; do { b = bytes[p++]; v += (b & 127) * Math.pow(2, s); s += 7; } while (b & 128); return v; };
+  const pop = x => { let c = 0; while (x) { c += x & 1; x >>= 1; } return c; };
+  const b0 = bytes[p++], b1 = bytes[p++];
+  const present = gi => (gi < 8 ? (b0 >> gi) : (b1 >> (gi - 8))) & 1;
+  const nGa = pop(b0) + pop(b1);
+  const nib = [];
+  for (let i = 0; i < (nGa + 1) >> 1; i++) { const b = bytes[p++]; nib.push(b >> 4, b & 15); }
+  const data = [];
+  let ni = 0;
+  for (let gi = 0; gi < GA_AP.length; gi++) {
+    if (present(gi)) data.push({ n: GA_AP[gi].n, i: (nib[ni++] ?? 0) % PALETTE.length, m: [] });
+  }
+  const nCustom = readVarint();
+  if (nCustom > 99) return null;
+  for (let k = 0; k < nCustom; k++) {
+    const len = readVarint();
+    if (p + len > bytes.length) return null;
+    const nom = new TextDecoder().decode(bytes.slice(p, p + len)); p += len;
+    data.push({ n: nom, i: (bytes[p++] ?? 0) % PALETTE.length, m: [] });
+  }
+  data.forEach(g => {
+    const n = readVarint();
+    let prev = 0;
+    for (let k = 0; k < n; k++) { prev += readVarint(); if (prev < UNIT_CODES.length) g.m.push(UNIT_CODES[prev]); }
+  });
+  return data;
+}
+
 function communeName(code) { return names[code] || code; }
 function populationOf(code) {
   return popByCode[code] || null;
@@ -646,7 +725,6 @@ function load() {
   } catch {}
 }
 
-function escName(s) { return s.replace(/%/g, "%25").replace(/[~:;,]/g, c => "%" + c.charCodeAt(0).toString(16).toUpperCase()); }
 function unescName(s) { return s.replace(/%([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16))); }
 function b64uFromBytes(bytes) {
   let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
@@ -657,21 +735,9 @@ function b64uToBytes(s) {
   while (s.length % 4) s += "=";
   return Uint8Array.from(atob(s), c => c.charCodeAt(0));
 }
-async function deflateStr(str) {
-  const stream = new Blob([str]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
 async function inflateStr(bytes) {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new TextDecoder().decode(await new Response(stream).arrayBuffer());
-}
-function encodeState() {
-  return groupements.map(g => {
-    const i = PALETTE.indexOf(g.color);
-    const gi = GA_AP.findIndex(a => a.n === g.nom);
-    const head = gi >= 0 ? "*" + gi.toString(36) : escName(g.nom);
-    return head + (i > 0 ? "~" + i : "") + ":" + g.communes.map(c => c.slice(2)).join(",");
-  }).join(";");
 }
 function decodeState(txt) {
   return txt.split(";").filter(Boolean).map(part => {
@@ -695,18 +761,11 @@ function decodeState(txt) {
   }).filter(Boolean);
 }
 
-document.getElementById("share").onclick = async () => {
+document.getElementById("share").onclick = () => {
   if (!groupements.length) { showToast("Rien à partager : attribuez d'abord des communes."); return; }
   const u = new URL(".", location.href);
   const base = (location.origin && location.origin !== "null" ? u.origin + u.pathname : "");
-  const txt = encodeState();
-  let url;
-  if (typeof CompressionStream === "function") {
-    try { url = base + "#c=" + b64uFromBytes(await deflateStr(txt)); }
-    catch { url = base + "#z=" + b64uFromBytes(new TextEncoder().encode(txt)); }
-  } else {
-    url = base + "#z=" + b64uFromBytes(new TextEncoder().encode(txt));
-  }
+  const url = base + "#b=" + b64uFromBytes(encodeStateBinary());
   const finish = () => showToast("Lien copié ! Collez-le dans un message pour partager cet état de la carte.");
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(finish, () => prompt("Copiez ce lien :", url));
@@ -722,12 +781,14 @@ document.getElementById("helpClose").onclick = () => {
 
 load();
 (async function loadFromHash() {
+  const mb = location.hash.match(/^#b=(.+)$/);
   const mc = location.hash.match(/^#c=(.+)$/);
   const mz = location.hash.match(/^#z=(.+)$/);
   const md = location.hash.match(/^#d=(.+)$/);
-  if (!mc && !mz && !md) return;
+  if (!mb && !mc && !mz && !md) return;
   try {
-    const data = mc ? decodeState(await inflateStr(b64uToBytes(mc[1])))
+    const data = mb ? decodeStateBinary(b64uToBytes(mb[1]))
+      : mc ? decodeState(await inflateStr(b64uToBytes(mc[1])))
       : mz ? decodeState(new TextDecoder().decode(b64uToBytes(mz[1])))
       : JSON.parse(decodeURIComponent(escape(atob(md[1]))));
     if (!Array.isArray(data)) return;
