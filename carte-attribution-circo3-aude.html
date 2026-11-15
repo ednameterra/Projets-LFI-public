@@ -90,6 +90,26 @@
   }
   #toast.show { opacity: 1; }
 
+  #helpBtn {
+    position: fixed; z-index: 2500; bottom: 22px; right: 22px;
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid #2a2d33; background: #1d2026; color: #e8e8e8;
+    font-size: 1rem; cursor: pointer;
+  }
+  #helpBtn:hover { background: #26292f; }
+
+  #helpOverlay {
+    position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,.65);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #helpOverlay .card {
+    background: #1d2026; color: #e8e8e8; border: 1px solid #2a2d33;
+    border-radius: 14px; max-width: 440px; width: 90%; padding: 22px 24px;
+  }
+  #helpOverlay h2 { font-size: 1rem; color: #ff4136; margin-bottom: 10px; }
+  #helpOverlay ol { margin: 0 0 14px 18px; font-size: .88rem; line-height: 1.7; color: #c9cdd2; }
+  #helpOverlay ol b { color: #e8e8e8; }
+
   .leaflet-popup-content-wrapper { border-radius: 10px; }
   .popup-title { font-weight: 700; font-size: 0.95rem; }
   .popup-sub { font-size: 0.78rem; color: #666; margin-top: 2px; }
@@ -136,6 +156,7 @@
 
       <div class="section-title">Sauvegarde</div>
       <div class="row">
+        <button class="ghost" id="share">Partager par lien</button>
         <button class="ghost" id="export">Exporter (JSON)</button>
         <button class="ghost" id="import">Importer</button>
         <button class="ghost" id="reset">Tout effacer</button>
@@ -144,6 +165,19 @@
     </div>
   </div>
   <div id="map"><div id="status">Chargement des contours des communes…</div></div>
+</div>
+<button id="helpBtn" title="Aide">?</button>
+<div id="helpOverlay" style="display:none">
+  <div class="card">
+    <h2>Comment utiliser la carte</h2>
+    <ol>
+      <li><b>Créez votre groupement</b> (champ « Nouveau groupement ») : il est sélectionné automatiquement.</li>
+      <li><b>Cliquez sur les communes</b> pour les attribuer au groupement actif. Une commune déjà prise change automatiquement de main (pas de doublon).</li>
+      <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime.</li>
+      <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez.</li>
+    </ol>
+    <button id="helpClose">C'est parti</button>
+  </div>
 </div>
 <div id="toast"></div>
 
@@ -364,6 +398,25 @@ document.getElementById("search").addEventListener("keydown", e => {
   } else showToast("Aucune commune trouvée.");
 });
 
+document.getElementById("share").onclick = () => {
+  if (!groupements.length) { showToast("Rien à partager : attribuez d'abord des communes."); return; }
+  const compact = groupements.map(g => ({ n: g.nom, i: PALETTE.indexOf(g.color), m: g.communes }));
+  const payload = btoa(unescape(encodeURIComponent(JSON.stringify(compact))));
+  const base = (location.origin && location.origin !== "null" ? location.origin : "") + location.pathname;
+  const url = base + "#d=" + payload;
+  const finish = () => showToast("Lien copié ! Collez-le dans un message pour partager cet état de la carte.");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(finish, () => prompt("Copiez ce lien :", url));
+  } else prompt("Copiez ce lien :", url);
+};
+
+const helpOverlay = document.getElementById("helpOverlay");
+document.getElementById("helpBtn").onclick = () => { helpOverlay.style.display = "flex"; };
+document.getElementById("helpClose").onclick = () => {
+  helpOverlay.style.display = "none";
+  try { localStorage.setItem(STORAGE_KEY + "-aide", "1"); } catch {}
+};
+
 document.getElementById("export").onclick = () => {
   const data = { version: 1, date: new Date().toISOString(), groupements };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -415,6 +468,28 @@ function load() {
 }
 
 load();
+(function loadFromHash() {
+  const m = location.hash.match(/^#d=(.+)$/);
+  if (!m) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
+    if (!Array.isArray(data)) return;
+    const loaded = data
+      .filter(g => g && typeof g.n === "string" && Array.isArray(g.m))
+      .map(g => ({
+        id: "g" + Math.random().toString(36).slice(2),
+        nom: g.n,
+        color: PALETTE[(Number.isInteger(g.i) && g.i >= 0 && g.i < PALETTE.length) ? g.i : 0],
+        communes: [...new Set(g.m)].filter(c => CIRCO_CODES.has(c))
+      }));
+    if (loaded.length) {
+      groupements = loaded;
+      activeGroup = null;
+      save();
+      setTimeout(() => showToast("Carte chargée depuis un lien partagé."), 400);
+    }
+  } catch {}
+})();
 renderGroupements();
 </script>
 </body>
