@@ -730,7 +730,7 @@ const GA_AP = [
   { n: "HVA (Haute Vallée Audoise)", c: "11103" },
   { n: "GA Insoumis du Quercorb", c: "11091" }
 ];
-document.getElementById("importGA").onclick = () => {
+function mergeGAAP() {
   let added = 0, assigned = 0;
   GA_AP.forEach(({ n, c }) => {
     if (groupements.some(g => g.nom.toLowerCase() === n.toLowerCase())) return;
@@ -740,6 +740,10 @@ document.getElementById("importGA").onclick = () => {
     added++;
     if (!groupements.some(x => x !== g && x.communes.includes(c))) { g.communes.push(c); assigned++; }
   });
+  return { added, assigned };
+}
+document.getElementById("importGA").onclick = () => {
+  const { added, assigned } = mergeGAAP();
   if (!added) { showToast("Les GA d'Action Populaire sont déjà présents."); return; }
   refresh();
   showToast(`${added} GA d'Action Populaire ajoutés ; ${assigned} commune(s) pré-attribuée(s).`);
@@ -974,6 +978,7 @@ document.getElementById("helpClose").onclick = () => {
 };
 
 load();
+mergeGAAP();
 (async function loadFromHash() {
   const mb = location.hash.match(/^#b=(.+)$/);
   const mc = location.hash.match(/^#c=(.+)$/);
@@ -998,6 +1003,7 @@ load();
     if (loaded.length) {
       groupements = loaded;
       dedupeColors();
+      mergeGAAP();
       activeGroup = null;
       save();
       if (dec && Array.isArray(dec.actions)) {
@@ -1014,6 +1020,7 @@ load();
 loadActions();
 renderAgenda();
 renderGroupements();
+renderStats();
 </script>
 </body>
 </html>
