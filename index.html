@@ -150,11 +150,6 @@
   .cl-del:hover { color: #D1271C; }
   .cl-empty { font-size: .75rem; color: #9a9b98; padding: 3px 4px; font-style: italic; }
 
-  .hatch-fill {
-    fill: url(#hatchPart) !important;
-    fill-opacity: .5 !important;
-    stroke: none !important;
-  }
   .partiel-tip {
     background: #4C0297f0; color: #ffe9e7;
     border: 1px solid #D1271C; border-radius: 8px;
@@ -236,11 +231,6 @@
     <button id="helpClose">C'est parti</button>
   </div>
 </div>
-<svg width="0" height="0" style="position:absolute"><defs>
-<pattern id="hatchPart" patternUnits="userSpaceOnUse" width="7" height="7" patternTransform="rotate(45)">
-  <line x1="0" y1="0" x2="0" y2="7" stroke="#212320" stroke-width="2.5"/>
-</pattern>
-</defs></svg>
 <div id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -331,14 +321,6 @@ function build(gj) {
       if (PARTIELLES[code]) layer.bindTooltip("⚠ " + communeName(code) + " — partagée", { permanent: true, direction: "center", className: "partiel-tip" });
     }
   }).addTo(map);
-  const partFeatures = gj.features.filter(f => PARTIELLES[f.properties.code]);
-  if (partFeatures.length) {
-    L.geoJSON({ type: "FeatureCollection", features: partFeatures }, {
-      interactive: false,
-      className: "hatch-fill",
-      style: () => ({ stroke: false, fill: true, fillOpacity: 0.5 })
-    }).addTo(map);
-  }
   map.fitBounds(geoLayer.getBounds());
   document.getElementById("status").remove();
 }
