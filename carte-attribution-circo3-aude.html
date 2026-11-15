@@ -158,6 +158,36 @@
   }
   .partiel-tip::before { display: none; }
 
+  #agenda { display: flex; flex-direction: column; gap: 5px; }
+  .ag-item { border: 1px solid #d9c7f2; border-radius: 9px; background: #faf6ff; padding: 6px 9px; font-size: .8rem; }
+  .ag-item .ag-top { display: flex; align-items: baseline; gap: 6px; }
+  .ag-date { font-weight: 700; color: #4C0297; white-space: nowrap; font-size: .75rem; }
+  .ag-title { font-weight: 600; color: #212320; flex: 1; }
+  .ag-sub { font-size: .72rem; color: #666; margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+  .ag-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; display: inline-block; border: 1px solid #21232055; }
+  .ag-actions { margin-left: auto; display: flex; gap: 4px; }
+  .ag-actions button { background: none; border: none; cursor: pointer; font-size: .78rem; color: #666; padding: 0 2px; }
+  .ag-actions button:hover { color: #D1271C; }
+  .ag-past { opacity: .55; }
+  .ag-past-toggle { margin-top: 2px; padding: 4px 8px; font-size: .72rem; }
+
+  #actionOverlay {
+    position: fixed; inset: 0; z-index: 3000; background: rgba(33,35,32,.7);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #actionOverlay .card {
+    background: #FFFCF4; color: #212320; border: 1px solid #4C0297;
+    border-radius: 14px; max-width: 400px; width: 90%; padding: 20px 22px;
+  }
+  #actionOverlay h2 { font-size: 1rem; color: #D1271C; margin-bottom: 6px; }
+  #actionOverlay label { display: block; font-size: .76rem; font-weight: 700; margin: 9px 0 3px; }
+  #actionOverlay input, #actionOverlay select {
+    width: 100%; box-sizing: border-box; padding: 7px 9px;
+    border: 1px solid #d9c7f2; border-radius: 8px; font: inherit; font-size: .85rem; background: #fff;
+  }
+  #actionOverlay .row2 { display: flex; gap: 8px; }
+  #actionOverlay .row2 > div { flex: 1; }
+
   .leaflet-popup-content-wrapper { border-radius: 10px; }
   .popup-title { font-weight: 700; font-size: 0.95rem; }
   .popup-sub { font-size: 0.78rem; color: #666; margin-top: 2px; }
@@ -204,6 +234,10 @@
       <div class="section-title">Répartition</div>
       <div id="stats"></div>
 
+      <div class="section-title">Agenda des actions</div>
+      <div id="agenda"></div>
+      <button class="ghost" id="addAction">+ Ajouter une action</button>
+
       <div class="section-title">Sauvegarde</div>
       <div class="row">
         <button class="ghost" id="share">Partager par lien</button>
@@ -226,9 +260,29 @@
       <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime ; cliquez sur la <b>pastille</b> de couleur d'un groupement pour la changer (couleurs FI, en évitant les doublons).</li>
       <li><b>Limoux</b> est découpée en 3 secteurs (République, Guynemer, Saint-Jean), d’après l’adresse des 3 GA limousois : chaque secteur s’attribue séparément.</li>
       <li><b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza).</li>
+      <li>L'<b>agenda</b> (panneau de gauche) liste vos actions par date : titre, heure, lieu et groupement. Elles sont incluses dans le lien de partage et l'export JSON ; rien n'apparaît sur la carte pour en garder la lisibilité.</li>
       <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez.</li>
     </ol>
     <button id="helpClose">C'est parti</button>
+  </div>
+</div>
+<div id="actionOverlay" style="display:none">
+  <div class="card">
+    <h2 id="actionFormTitle">Nouvelle action</h2>
+    <label>Titre *</label>
+    <input id="agTitre" type="text" maxlength="120" placeholder="Ex. Tractage au marché de Limoux">
+    <div class="row2">
+      <div><label>Date *</label><input id="agDate" type="date"></div>
+      <div><label>Heure</label><input id="agHeure" type="time"></div>
+    </div>
+    <label>Lieu</label>
+    <input id="agLieu" type="text" maxlength="120" placeholder="Ex. Place de la République, Limoux">
+    <label>Groupement</label>
+    <select id="agGid"></select>
+    <div class="row" style="margin-top:14px">
+      <button id="agSave">Enregistrer</button>
+      <button class="ghost" id="agCancel">Annuler</button>
+    </div>
   </div>
 </div>
 <div id="toast"></div>
@@ -380,6 +434,7 @@ function refresh() {
   if (geoLayer) geoLayer.eachLayer(l => l.setStyle(styleFor(l.feature.properties.code)));
   renderGroupements();
   renderStats();
+  renderAgenda();
   save();
 }
 
@@ -398,10 +453,11 @@ function renderGroupements() {
     div.className = "brush-item" + (activeGroup === g.id ? " active" : "");
     div.style.color = g.color;
     const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
+    const nUp = actions.filter(a => a.gid === g.id && a.date >= todayStr()).length;
     div.innerHTML = `
       <span class="swatch" style="background:${g.color}" title="Cliquer pour changer la couleur"></span>
       <span style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
-      <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.</span>
+      <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.${nUp ? `<br>📅 ${nUp}` : ""}</span>
       <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
       <button class="del rm" title="Supprimer le groupement">✕</button>`;
     div.onclick = () => { activeGroup = g.id; renderGroupements(); };
@@ -497,7 +553,7 @@ CIRCO_CODES.forEach(code => {
 });
 
 function encodeStateBinary() {
-  const bytes = [1];
+  const bytes = [2];
   const pushVarint = v => { while (v > 127) { bytes.push((v & 127) | 128); v >>>= 7; } bytes.push(v); };
   const gaGroups = [], customGroups = [];
   groupements.forEach(g => {
@@ -536,10 +592,27 @@ function encodeStateBinary() {
     let prev = 0;
     idxs.forEach(i => { pushVarint(i - prev); prev = i; });
   });
+  pushVarint(actions.length);
+  actions.forEach(a => {
+    const nb = new TextEncoder().encode(a.titre);
+    pushVarint(nb.length);
+    nb.forEach(b => bytes.push(b));
+    const [yy, mm, dd] = a.date.split("-").map(Number);
+    pushVarint(yy); pushVarint(mm); pushVarint(dd);
+    const hb = new TextEncoder().encode(a.heure || "");
+    pushVarint(hb.length);
+    hb.forEach(b => bytes.push(b));
+    const lb = new TextEncoder().encode(a.lieu || "");
+    pushVarint(lb.length);
+    lb.forEach(b => bytes.push(b));
+    const gi = order.findIndex(g => g.id === a.gid);
+    pushVarint(gi >= 0 ? gi + 1 : 0);
+  });
   return new Uint8Array(bytes);
 }
 function decodeStateBinary(bytes) {
-  if (!bytes.length || bytes[0] !== 1) return null;
+  if (!bytes.length || (bytes[0] !== 1 && bytes[0] !== 2)) return null;
+  const version = bytes[0];
   let p = 1;
   const readVarint = () => { let v = 0, s = 0, b; do { b = bytes[p++]; v += (b & 127) * Math.pow(2, s); s += 7; } while (b & 128); return v; };
   const pop = x => { let c = 0; while (x) { c += x & 1; x >>= 1; } return c; };
@@ -566,7 +639,27 @@ function decodeStateBinary(bytes) {
     let prev = 0;
     for (let k = 0; k < n; k++) { prev += readVarint(); if (prev < UNIT_CODES.length) g.m.push(UNIT_CODES[prev]); }
   });
-  return data;
+  const decActions = [];
+  if (version >= 2) {
+    const nAct = readVarint();
+    if (nAct > 999) return null;
+    for (let k = 0; k < nAct; k++) {
+      const tl = readVarint();
+      if (p + tl > bytes.length) return null;
+      const titre = new TextDecoder().decode(bytes.slice(p, p + tl)); p += tl;
+      const yy = readVarint(), mm = readVarint(), dd = readVarint();
+      const date = yy + "-" + String(mm).padStart(2, "0") + "-" + String(dd).padStart(2, "0");
+      const hl = readVarint();
+      if (p + hl > bytes.length) return null;
+      const heure = new TextDecoder().decode(bytes.slice(p, p + hl)); p += hl;
+      const ll = readVarint();
+      if (p + ll > bytes.length) return null;
+      const lieu = new TextDecoder().decode(bytes.slice(p, p + ll)); p += ll;
+      const gi = readVarint() - 1;
+      decActions.push({ titre, date, heure, lieu, gi });
+    }
+  }
+  return { groups: data, actions: decActions };
 }
 
 function communeName(code) { return names[code] || code; }
@@ -657,7 +750,7 @@ document.getElementById("search").addEventListener("keydown", e => {
 });
 
 document.getElementById("export").onclick = () => {
-  const data = { version: 1, date: new Date().toISOString(), groupements };
+  const data = { version: 2, date: new Date().toISOString(), groupements, actions };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -678,6 +771,12 @@ document.getElementById("fileInput").onchange = (e) => {
       groupements.forEach(g => { g.communes = [...new Set(g.communes)].filter(c => isUnit(c)); });
       dedupeColors();
       activeGroup = null;
+      if (Array.isArray(data.actions)) {
+        actions = data.actions.filter(a => a && a.id && a.titre && a.date)
+          .map(a => ({ id: a.id, titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gid && groupements.some(g => g.id === a.gid) ? a.gid : null }));
+        saveActions();
+        renderAgenda();
+      }
       refresh();
       showToast("Import réussi.");
     } catch { showToast("Fichier invalide."); }
@@ -687,9 +786,11 @@ document.getElementById("fileInput").onchange = (e) => {
 };
 
 document.getElementById("reset").onclick = () => {
-  if (!confirm("Effacer toutes les attributions et tous les groupements ?")) return;
+  if (!confirm("Effacer toutes les attributions, tous les groupements et tout l'agenda ?")) return;
   groupements = [];
   activeGroup = null;
+  actions = [];
+  saveActions();
   refresh();
 };
 
@@ -744,7 +845,7 @@ function decodeState(txt) {
 }
 
 document.getElementById("share").onclick = () => {
-  if (!groupements.length) { showToast("Rien à partager : attribuez d'abord des communes."); return; }
+  if (!groupements.length && !actions.length) { showToast("Rien à partager : attribuez des communes ou ajoutez des actions."); return; }
   const u = new URL(".", location.href);
   const base = (location.origin && location.origin !== "null" ? u.origin + u.pathname : "");
   const url = base + "#b=" + b64uFromBytes(encodeStateBinary());
@@ -752,6 +853,100 @@ document.getElementById("share").onclick = () => {
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(finish, () => prompt("Copiez ce lien :", url));
   } else prompt("Copiez ce lien :", url);
+};
+
+let actions = [];
+let agendaShowPast = false;
+const AG_KEY = STORAGE_KEY + "-agenda";
+
+function saveActions() { try { localStorage.setItem(AG_KEY, JSON.stringify(actions)); } catch {} }
+function loadActions() {
+  try {
+    const a = JSON.parse(localStorage.getItem(AG_KEY));
+    if (Array.isArray(a)) actions = a.filter(x => x && x.id && x.titre && x.date)
+      .map(x => ({ id: x.id, titre: x.titre, date: x.date, heure: x.heure || "", lieu: x.lieu || "", gid: x.gid || null }));
+  } catch {}
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function fmtDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+}
+function agRow(a, past) {
+  const g = groupements.find(g => g.id === a.gid);
+  const sub = g || a.lieu;
+  return `<div class="ag-item${past ? " ag-past" : ""}">
+    <div class="ag-top"><span class="ag-date">${escapeHtml(fmtDate(a.date))}${a.heure ? " · " + escapeHtml(a.heure) : ""}</span><span class="ag-title">${escapeHtml(a.titre)}</span>
+    <span class="ag-actions"><button class="ag-edit" data-id="${a.id}" title="Modifier">✎</button><button class="ag-del" data-id="${a.id}" title="Supprimer">✕</button></span></div>
+    ${sub ? `<div class="ag-sub">${g ? `<span class="ag-dot" style="background:${g.color}"></span>${escapeHtml(g.nom)}` : ""}${g && a.lieu ? " · " : ""}${a.lieu ? escapeHtml(a.lieu) : ""}</div>` : ""}
+  </div>`;
+}
+function renderAgenda() {
+  const box = document.getElementById("agenda");
+  if (!box) return;
+  const today = todayStr();
+  const up = actions.filter(a => a.date >= today).sort((a, b) => (a.date + (a.heure || "")).localeCompare(b.date + (b.heure || "")));
+  const past = actions.filter(a => a.date < today).sort((a, b) => b.date.localeCompare(a.date));
+  let html = "";
+  if (!actions.length) html = `<div class="cl-empty">Aucune action pour le moment.</div>`;
+  up.forEach(a => { html += agRow(a, false); });
+  if (past.length) {
+    html += `<button class="ghost ag-past-toggle" id="togglePast">${agendaShowPast ? "Masquer" : "Afficher"} les actions passées (${past.length})</button>`;
+    if (agendaShowPast) past.forEach(a => { html += agRow(a, true); });
+  }
+  box.innerHTML = html;
+  const tp = document.getElementById("togglePast");
+  if (tp) tp.onclick = () => { agendaShowPast = !agendaShowPast; renderAgenda(); };
+  box.querySelectorAll(".ag-edit").forEach(b => { b.onclick = () => openActionForm(actions.find(a => a.id === b.dataset.id)); });
+  box.querySelectorAll(".ag-del").forEach(b => {
+    b.onclick = () => {
+      const a = actions.find(x => x.id === b.dataset.id);
+      if (a && confirm(`Supprimer l'action « ${a.titre} » ?`)) {
+        actions = actions.filter(x => x.id !== a.id);
+        saveActions();
+        renderAgenda();
+        renderGroupements();
+      }
+    };
+  });
+}
+let editingAction = null;
+function openActionForm(a) {
+  editingAction = a || null;
+  document.getElementById("actionFormTitle").textContent = a ? "Modifier l'action" : "Nouvelle action";
+  const sel = document.getElementById("agGid");
+  sel.innerHTML = `<option value="">— Aucun —</option>` + groupements.map(g => `<option value="${g.id}">${escapeHtml(g.nom)}</option>`).join("");
+  document.getElementById("agTitre").value = a ? a.titre : "";
+  document.getElementById("agDate").value = a ? a.date : "";
+  document.getElementById("agHeure").value = a && a.heure ? a.heure : "";
+  document.getElementById("agLieu").value = a && a.lieu ? a.lieu : "";
+  sel.value = a && a.gid && groupements.some(g => g.id === a.gid) ? a.gid : "";
+  document.getElementById("actionOverlay").style.display = "flex";
+  document.getElementById("agTitre").focus();
+}
+document.getElementById("addAction").onclick = () => openActionForm(null);
+document.getElementById("agCancel").onclick = () => { document.getElementById("actionOverlay").style.display = "none"; };
+document.getElementById("agSave").onclick = () => {
+  const titre = document.getElementById("agTitre").value.trim();
+  const date = document.getElementById("agDate").value;
+  if (!titre || !date) { showToast("Le titre et la date sont obligatoires."); return; }
+  const heure = document.getElementById("agHeure").value;
+  const lieu = document.getElementById("agLieu").value.trim();
+  const gid = document.getElementById("agGid").value || null;
+  if (editingAction) {
+    Object.assign(editingAction, { titre, date, heure, lieu, gid });
+  } else {
+    actions.push({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre, date, heure, lieu, gid });
+  }
+  saveActions();
+  document.getElementById("actionOverlay").style.display = "none";
+  renderAgenda();
+  renderGroupements();
+  showToast(editingAction ? "Action modifiée." : "Action ajoutée.");
 };
 
 const helpOverlay = document.getElementById("helpOverlay");
@@ -769,7 +964,8 @@ load();
   const md = location.hash.match(/^#d=(.+)$/);
   if (!mb && !mc && !mz && !md) return;
   try {
-    const data = mb ? decodeStateBinary(b64uToBytes(mb[1]))
+    const dec = mb ? decodeStateBinary(b64uToBytes(mb[1])) : null;
+    const data = mb ? dec.groups
       : mc ? decodeState(await inflateStr(b64uToBytes(mc[1])))
       : mz ? decodeState(new TextDecoder().decode(b64uToBytes(mz[1])))
       : JSON.parse(decodeURIComponent(escape(atob(md[1]))));
@@ -787,10 +983,19 @@ load();
       dedupeColors();
       activeGroup = null;
       save();
+      if (dec && Array.isArray(dec.actions)) {
+        actions = dec.actions
+          .filter(a => a && a.titre && a.date)
+          .map(a => ({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gi >= 0 && a.gi < loaded.length ? loaded[a.gi].id : null }));
+        saveActions();
+        renderAgenda();
+      }
       setTimeout(() => showToast("Carte chargée depuis un lien partagé."), 400);
     }
   } catch {}
 })();
+loadActions();
+renderAgenda();
 renderGroupements();
 </script>
 </body>
