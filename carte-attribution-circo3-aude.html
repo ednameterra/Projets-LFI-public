@@ -110,6 +110,25 @@
   #helpOverlay ol { margin: 0 0 14px 18px; font-size: .88rem; line-height: 1.7; color: #c9cdd2; }
   #helpOverlay ol b { color: #e8e8e8; }
 
+  .commune-list {
+    border: 1px solid #23262b; border-radius: 9px; background: #171a1f;
+    padding: 4px 6px; display: flex; flex-direction: column; gap: 1px;
+    max-height: 180px; overflow-y: auto;
+  }
+  .cl-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: .78rem; color: #c9cdd2; padding: 3px 4px; border-radius: 6px;
+  }
+  .cl-row:hover { background: #22262c; }
+  .cl-name { cursor: pointer; flex: 1; }
+  .cl-name:hover { color: #fff; text-decoration: underline; }
+  .cl-del {
+    border: none; background: none; color: #6a6f76; cursor: pointer;
+    font-size: .75rem; padding: 1px 4px; border-radius: 4px; flex-shrink: 0;
+  }
+  .cl-del:hover { color: #ff4136; }
+  .cl-empty { font-size: .75rem; color: #6a6f76; padding: 3px 4px; font-style: italic; }
+
   .leaflet-popup-content-wrapper { border-radius: 10px; }
   .popup-title { font-weight: 700; font-size: 0.95rem; }
   .popup-sub { font-size: 0.78rem; color: #666; margin-top: 2px; }
@@ -192,6 +211,7 @@ let groupements = [];
 let activeGroup = null;
 let layers = {};
 let geoLayer = null;
+const expandedGroups = new Set();
 
 const map = L.map("map", { zoomControl: true });
 const TILE_SOURCES = [
@@ -317,9 +337,15 @@ function renderGroupements() {
       <span class="swatch" style="background:${g.color}"></span>
       <span style="color:#e8e8e8;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
       <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.</span>
+      <button class="del tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "▾" : "▸"}</button>
       <button class="del" title="Supprimer le groupement">✕</button>`;
     div.onclick = () => { activeGroup = g.id; renderGroupements(); };
-    div.querySelector(".del").onclick = (e) => {
+    div.querySelector(".tgl").onclick = (e) => {
+      e.stopPropagation();
+      if (expandedGroups.has(g.id)) expandedGroups.delete(g.id); else expandedGroups.add(g.id);
+      renderGroupements();
+    };
+    div.querySelector(".del:not(.tgl)").onclick = (e) => {
       e.stopPropagation();
       if (g.communes.length && !confirm(`Supprimer « ${g.nom} » ? Ses ${g.communes.length} communes redeviennent libres.`)) return;
       groupements = groupements.filter(x => x.id !== g.id);
@@ -332,6 +358,35 @@ function renderGroupements() {
       if (nom && nom.trim()) { g.nom = nom.trim(); refresh(); }
     };
     box.appendChild(div);
+
+    if (expandedGroups.has(g.id)) {
+      const list = document.createElement("div");
+      list.className = "commune-list";
+      const sorted = [...g.communes].sort((a, b) => communeName(a).localeCompare(communeName(b), "fr"));
+      if (!sorted.length) {
+        const empty = document.createElement("div");
+        empty.className = "cl-empty";
+        empty.textContent = "Aucune commune attribuée";
+        list.appendChild(empty);
+      }
+      sorted.forEach(code => {
+        const row = document.createElement("div");
+        row.className = "cl-row";
+        row.innerHTML = `<span class="cl-name" title="Cliquer pour zoomer">${escapeHtml(communeName(code))}</span><button class="cl-del" title="Retirer cette commune">✕</button>`;
+        row.querySelector(".cl-name").onclick = (e) => {
+          e.stopPropagation();
+          const l = layers[code];
+          if (l) {
+            map.fitBounds(l.getBounds(), { maxZoom: 11 });
+            l.fire("mouseover");
+            setTimeout(() => l.fire("mouseout"), 1500);
+          }
+        };
+        row.querySelector(".cl-del").onclick = (e) => { e.stopPropagation(); unassign(code); };
+        list.appendChild(row);
+      });
+      box.appendChild(list);
+    }
   });
   const mode = document.getElementById("brushMode");
   const g = groupements.find(g => g.id === activeGroup);
