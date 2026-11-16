@@ -334,21 +334,27 @@ const TILE_SOURCES = [
   { url: "https://tile.openstreetmap.de/{z}/{x}/{y}.png", maxZoom: 18, attribution: "&copy; OpenStreetMap Deutschland" },
   { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", maxZoom: 19, attribution: "Tiles &copy; Esri" }
 ];
-let tileIdx = 0, tileErrors = 0, tileLayer = null;
-function addTileLayer() {
+let tileIdx = 0, tileErrors = 0;
+const tileMaps = [];
+function addTileLayerTo(m) {
+  if (!tileMaps.includes(m)) tileMaps.push(m);
   const src = TILE_SOURCES[tileIdx];
-  tileLayer = L.tileLayer(src.url, { maxZoom: src.maxZoom, attribution: src.attribution });
-  tileLayer.on("tileerror", () => {
+  const layer = L.tileLayer(src.url, { maxZoom: src.maxZoom, attribution: src.attribution });
+  layer.on("tileerror", () => {
+    if (m._tileLayer !== layer) return;
     tileErrors++;
     if (tileErrors >= 5 && tileIdx < TILE_SOURCES.length - 1) {
       tileIdx++; tileErrors = 0;
-      map.removeLayer(tileLayer);
-      addTileLayer();
+      tileMaps.forEach(x => {
+        if (x._tileLayer) x.removeLayer(x._tileLayer);
+        addTileLayerTo(x);
+      });
     }
   });
-  tileLayer.addTo(map);
+  m._tileLayer = layer;
+  layer.addTo(m);
 }
-addTileLayer();
+addTileLayerTo(map);
 
 map.createPane("veil");
 map.getPane("veil").style.zIndex = 350;
@@ -1031,7 +1037,7 @@ function reverseGeocode(p, force) {
 function initAgMap() {
   if (agMapObj || typeof L === "undefined") return;
   agMapObj = L.map("agMap", { zoomControl: true });
-  L.tileLayer(TILE_SOURCES[0].url, { maxZoom: 19, attribution: TILE_SOURCES[0].attribution }).addTo(agMapObj);
+  addTileLayerTo(agMapObj);
   agMapObj.setView([43.05, 2.2], 9);
   agMapObj.on("click", e => setAgPos(e.latlng.lat, e.latlng.lng, true));
 }
