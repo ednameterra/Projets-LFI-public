@@ -1153,6 +1153,7 @@ save();
           addC++;
         });
       });
+      dedupeGAAP();
       if (dec && Array.isArray(dec.actions)) {
         dec.actions.filter(a => a && a.titre && a.date).forEach(a => {
           const key = (a.titre + "|" + a.date + "|" + (a.heure || "") + "|" + (a.lieu || "")).toLowerCase();
