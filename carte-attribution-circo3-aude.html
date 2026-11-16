@@ -278,7 +278,7 @@
       <li><b>Limoux</b> est découpée en 3 secteurs (République, Guynemer, Saint-Jean), d’après l’adresse des 3 GA limousois : chaque secteur s’attribue séparément.</li>
       <li><b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza).</li>
       <li>L'<b>agenda</b> (panneau de gauche) liste vos actions par date : titre, heure, lieu et groupement. Elles sont incluses dans le lien de partage et l'export JSON ; rien n'apparaît sur la carte pour en garder la lisibilité.</li>
-      <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez.</li>
+      <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez. Un lien reçu ne s'applique qu'une fois : ensuite, vos modifications sont conservées même en rechargeant la page — et chacun garde sa propre version (pour partager la vôtre, utilisez à nouveau « Partager par lien »).</li>
     </ol>
     <button id="helpClose">C'est parti</button>
   </div>
@@ -1137,8 +1137,9 @@ save();
       mergeGAAP();
       activeGroup = null;
       save();
+      try { history.replaceState(null, "", location.pathname + location.search); } catch {}
       renderAgenda();
-      setTimeout(() => showToast("Carte chargée depuis un lien partagé."), 400);
+      setTimeout(() => showToast("Carte chargée depuis un lien partagé. Vos modifications sont conservées dans ce navigateur."), 400);
     }
   } catch {}
 })();
