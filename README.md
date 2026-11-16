@@ -28,8 +28,10 @@ Fonctionne sur navigateur (ordinateur et téléphone), sans installation ni comp
 - Après intégration, votre carte devient la référence : regénérez votre propre lien et renvoyez-le à ceux qui en ont besoin.
 
 ### 5. Les groupements
-- **⏸ désactive** un groupement (GA inactif) : son territoire redevient libre, ses données sont conservées, réactivation en un clic.
+- **⏸ désactive** un groupement (GA inactif) : son territoire redevient libre, ses données sont conservées.
 - **✕ supprime** définitivement — seulement pour une vraie erreur de création.
+- **Ces deux statuts se propagent par les liens** : le destinataire verra le GA retiré ou désactivé chez lui, et un rechargement ne le ré-ajoutera pas.
+- Pour rétablir un GA : bouton « Ajouter » dans la liste « GA d'Action Populaire » (panneau de gauche, section repliable).
 - Ne pas renommer les 12 GA officiels d'Action Populaire : leurs noms servent à reconnaître les données d'un lien à l'autre.
 - Une commune = un seul groupement actif, toujours (anti-doublon automatique).
 
