@@ -337,6 +337,7 @@ const CIRCO_CODES = new Set(["11002","11003","11004","11005","11007","11008","11
 
 const PALETTE = ["#7b13d6","#f91616","#3885f4","#ed5fb1","#f9c900","#2e9959","#00b8d4","#ff7043","#8bc34a","#e91e8c","#795548","#cddc39","#00897b","#3949ab","#546e7a","#1b5e20"];
 const STORAGE_KEY = "lfi-circo3-aude-v1";
+let gaSuppr = [];
 const PARTIELLES = { "11069": "Carcassonne" };
 const PARTIAL_GEOM = {"type":"Polygon","coordinates":[[[2.30679,43.179092],[2.3069,43.1784],[2.30738,43.177177],[2.30725,43.176704],[2.307368,43.175824],[2.303517,43.175824],[2.3017,43.1759],[2.3009,43.1763],[2.2989,43.1771],[2.295908,43.177998],[2.2966,43.1784],[2.294384,43.17844],[2.293037,43.178823],[2.2924,43.1796],[2.28992,43.18007],[2.289422,43.180551],[2.288926,43.18082],[2.287756,43.181219],[2.284919,43.181697],[2.285815,43.182515],[2.287213,43.183583],[2.289228,43.185496],[2.2905,43.1864],[2.2906,43.1867],[2.290627,43.187348],[2.2905,43.1886],[2.290379,43.188628],[2.2897,43.1883],[2.288418,43.187234],[2.287792,43.186908],[2.285239,43.186308],[2.285122,43.190604],[2.2866,43.1909],[2.286728,43.191057],[2.2883,43.1911],[2.290143,43.191317],[2.2901,43.192],[2.29,43.1923],[2.2901,43.1934],[2.2906,43.1948],[2.2907,43.1955],[2.2906,43.1958],[2.290627,43.196167],[2.291,43.1966],[2.2919,43.198],[2.2917,43.1984],[2.291111,43.19875],[2.2908,43.1988],[2.2897,43.1993],[2.289,43.1992],[2.288359,43.199231],[2.287437,43.1995],[2.2871,43.1997],[2.286823,43.199631],[2.28612,43.19892],[2.2848,43.1994],[2.284661,43.199313],[2.283597,43.197748],[2.2823,43.1982],[2.2819,43.1985],[2.2808,43.1988],[2.2803,43.1991],[2.279147,43.199213],[2.278163,43.199427],[2.2755,43.2006],[2.274854,43.200812],[2.276272,43.203429],[2.272432,43.204244],[2.269987,43.203111],[2.2688,43.203],[2.268191,43.203037],[2.267198,43.207414],[2.266935,43.207959],[2.2665,43.2097],[2.2661,43.2109],[2.2644,43.2141],[2.262756,43.216288],[2.2625,43.2168],[2.262221,43.217021],[2.264788,43.219868],[2.2652,43.2198],[2.267,43.2198],[2.267955,43.22008],[2.269916,43.22109],[2.271771,43.221058],[2.273933,43.221351],[2.2754,43.2227],[2.274917,43.222893],[2.277146,43.224424],[2.276713,43.224813],[2.2777,43.2258],[2.276201,43.226339],[2.275917,43.226519],[2.276922,43.227594],[2.2774,43.2284],[2.277702,43.229094],[2.276745,43.22942],[2.277194,43.230308],[2.2759,43.2308],[2.263883,43.234233],[2.261721,43.234992],[2.2623,43.2358],[2.262331,43.23616],[2.262744,43.237285],[2.2635,43.2387],[2.268155,43.238882],[2.268203,43.238964],[2.269136,43.238687],[2.2741,43.2413],[2.2754,43.2434],[2.275497,43.2443],[2.276166,43.244204],[2.280171,43.242762],[2.281187,43.242167],[2.284461,43.240693],[2.286,43.2394],[2.2891,43.2375],[2.2894,43.2377],[2.295988,43.233708],[2.295955,43.23343],[2.2968,43.232572],[2.2965,43.2322],[2.296546,43.232158],[2.3018,43.2305],[2.3022,43.2309],[2.309152,43.227456],[2.309483,43.227667],[2.3098,43.2276],[2.310805,43.2276],[2.3134,43.227],[2.3153,43.227],[2.315225,43.228515],[2.3151,43.2286],[2.314528,43.228654],[2.31903,43.229355],[2.322633,43.230357],[2.324807,43.231278],[2.327512,43.227284],[2.327383,43.225728],[2.327583,43.224562],[2.327123,43.222851],[2.328777,43.222166],[2.32919,43.220332],[2.331553,43.219542],[2.331943,43.21924],[2.332605,43.218898],[2.333443,43.218164],[2.333845,43.21748],[2.334684,43.21752],[2.33635,43.217993],[2.337319,43.217692],[2.338252,43.217048],[2.339646,43.217414],[2.339776,43.217537],[2.340591,43.217594],[2.341099,43.217724],[2.341312,43.217675],[2.342257,43.217977],[2.342813,43.218009],[2.343072,43.218115],[2.34351,43.217985],[2.343864,43.218018],[2.344726,43.2177],[2.344963,43.21783],[2.345282,43.217757],[2.345294,43.217496],[2.345412,43.217309],[2.345565,43.217219],[2.34579,43.217374],[2.346239,43.217145],[2.346487,43.216738],[2.34657,43.216436],[2.347172,43.216518],[2.347645,43.216714],[2.348342,43.216648],[2.348342,43.215947],[2.347869,43.215613],[2.34755,43.214774],[2.347515,43.214211],[2.347243,43.213771],[2.346877,43.213453],[2.34657,43.213005],[2.346475,43.212679],[2.34677,43.212264],[2.346664,43.212166],[2.346759,43.211506],[2.347042,43.211302],[2.347066,43.211098],[2.347373,43.210682],[2.348212,43.210519],[2.349618,43.210528],[2.34996,43.210234],[2.350244,43.210544],[2.350527,43.210568],[2.350835,43.210707],[2.351154,43.210707],[2.351579,43.210536],[2.35178,43.210193],[2.35269,43.209721],[2.352796,43.209264],[2.351626,43.208278],[2.351662,43.207512],[2.351792,43.207422],[2.351886,43.206893],[2.351827,43.206526],[2.351579,43.206175],[2.351969,43.20602],[2.352323,43.205751],[2.352229,43.205548],[2.351165,43.205931],[2.350799,43.205784],[2.34989,43.206485],[2.348803,43.206135],[2.348625,43.205784],[2.346203,43.202483],[2.341985,43.19959],[2.34052,43.199875],[2.339256,43.200747],[2.335145,43.202679],[2.33088,43.202671],[2.329391,43.201815],[2.329119,43.201456],[2.329001,43.201204],[2.329048,43.20047],[2.329533,43.19972],[2.331081,43.199345],[2.337768,43.198066],[2.329793,43.188848],[2.330466,43.185873],[2.33041,43.185382],[2.329486,43.185726],[2.3284,43.1842],[2.328322,43.1842],[2.327383,43.18514],[2.326355,43.185946],[2.3234,43.1886],[2.3229,43.1885],[2.3223,43.1885],[2.322,43.1883],[2.321652,43.187813],[2.3215,43.1874],[2.3215,43.187],[2.321593,43.186696],[2.3219,43.1863],[2.322562,43.185629],[2.322917,43.184871],[2.322915,43.184062],[2.322409,43.183241],[2.322101,43.182923],[2.321062,43.182132],[2.3195,43.1815],[2.318774,43.1813],[2.318492,43.1813],[2.3172,43.1817],[2.3152,43.1826],[2.314,43.1829],[2.313122,43.18333],[2.3128,43.1834],[2.3123,43.1834],[2.3104,43.183],[2.3093,43.1826],[2.3084,43.182],[2.3078,43.1814],[2.307262,43.180714],[2.3068,43.1797],[2.30679,43.179092]],[[2.345636,43.210446],[2.345908,43.21043],[2.346168,43.210087],[2.346511,43.21047],[2.346274,43.210731],[2.345258,43.210837],[2.345022,43.210381],[2.344845,43.210674],[2.344502,43.210796],[2.344018,43.210144],[2.344041,43.210079],[2.344348,43.210079],[2.345034,43.210356],[2.345424,43.210568],[2.345636,43.210446]]]};
 const SPLIT_GEOMS = { "11206": [
@@ -558,6 +559,8 @@ function renderGroupements() {
     div.querySelector(".rm").onclick = (e) => {
       e.stopPropagation();
       if (g.communes.length && !confirm(`Supprimer « ${g.nom} » ? Ses ${g.communes.length} communes redeviennent libres.`)) return;
+      const off = GA_AP.find(a => normGAName(a.n) === normGAName(g.nom));
+      if (off && !gaSuppr.some(s => normGAName(s) === normGAName(off.n))) gaSuppr.push(off.n);
       groupements = groupements.filter(x => x.id !== g.id);
       if (activeGroup === g.id) activeGroup = null;
       refresh();
@@ -633,7 +636,7 @@ CIRCO_CODES.forEach(code => {
 });
 
 function encodeStateBinary() {
-  const bytes = [3];
+  const bytes = [4];
   const pushVarint = v => { while (v > 127) { bytes.push((v & 127) | 128); v >>>= 7; } bytes.push(v); };
   const gaGroups = [], customGroups = [];
   groupements.forEach(g => {
@@ -643,6 +646,12 @@ function encodeStateBinary() {
   let b0 = 0, b1 = 0;
   gaGroups.forEach(({ gi }) => { if (gi < 8) b0 |= 1 << gi; else b1 |= 1 << (gi - 8); });
   bytes.push(b0, b1);
+  let t0 = 0, t1 = 0;
+  GA_AP.forEach(({ n }, gi) => { if (gaSuppr.some(s => normGAName(s) === normGAName(n))) { if (gi < 8) t0 |= 1 << gi; else t1 |= 1 << (gi - 8); } });
+  bytes.push(t0, t1);
+  let i0 = 0, i1 = 0;
+  gaGroups.forEach(({ g, gi }) => { if (g.actif === false) { if (gi < 8) i0 |= 1 << gi; else i1 |= 1 << (gi - 8); } });
+  bytes.push(i0, i1);
   const nibbles = [];
   for (let gi = 0; gi < GA_AP.length; gi++) {
     const e = gaGroups.find(x => x.gi === gi);
@@ -696,13 +705,17 @@ function encodeStateBinary() {
   return new Uint8Array(bytes);
 }
 function decodeStateBinary(bytes) {
-  if (!bytes.length || (bytes[0] !== 1 && bytes[0] !== 2 && bytes[0] !== 3)) return null;
+  if (!bytes.length || (bytes[0] !== 1 && bytes[0] !== 2 && bytes[0] !== 3 && bytes[0] !== 4)) return null;
   const version = bytes[0];
   let p = 1;
   const readVarint = () => { let v = 0, s = 0, b; do { b = bytes[p++]; v += (b & 127) * Math.pow(2, s); s += 7; } while (b & 128); return v; };
   const pop = x => { let c = 0; while (x) { c += x & 1; x >>= 1; } return c; };
   const b0 = bytes[p++], b1 = bytes[p++];
+  let t0 = 0, t1 = 0, i0 = 0, i1 = 0;
+  if (version >= 4 && p + 4 <= bytes.length) { t0 = bytes[p++]; t1 = bytes[p++]; i0 = bytes[p++]; i1 = bytes[p++]; }
   const present = gi => (gi < 8 ? (b0 >> gi) : (b1 >> (gi - 8))) & 1;
+  const tomb = gi => (gi < 8 ? (t0 >> gi) : (t1 >> (gi - 8))) & 1;
+  const inact = gi => (gi < 8 ? (i0 >> gi) : (i1 >> (gi - 8))) & 1;
   const nGa = pop(b0) + pop(b1);
   const nib = [];
   for (let i = 0; i < (nGa + 1) >> 1; i++) { const b = bytes[p++]; nib.push(b >> 4, b & 15); }
@@ -749,7 +762,9 @@ function decodeStateBinary(bytes) {
       decActions.push({ titre, date, heure, lieu, gi, lat, lng });
     }
   }
-  return { groups: data, actions: decActions };
+  return { groups: data, actions: decActions,
+    tombstones: GA_AP.filter((_, gi) => tomb(gi)).map(g => g.n),
+    inactive: GA_AP.filter((_, gi) => inact(gi)).map(g => g.n) };
 }
 
 function communeName(code) { return names[code] || code; }
@@ -802,6 +817,7 @@ const GA_AP = [
 function mergeGAAP() {
   let added = 0, assigned = 0;
   GA_AP.forEach(({ n, c }) => {
+    if (gaSuppr.some(s => normGAName(s) === normGAName(n))) return;
     if (groupements.some(g => normGAName(g.nom) === normGAName(n))) return;
     const color = pickColor();
     const g = { id: "g" + Date.now() + "-" + added, nom: n, color, communes: [] };
@@ -861,6 +877,7 @@ function renderGAList() {
       btn.textContent = "Ajouter";
       btn.onclick = () => {
         const g = { id: "g" + Date.now(), nom: n, color: pickColor(), communes: [] };
+        gaSuppr = gaSuppr.filter(s => normGAName(s) !== normGAName(n));
         groupements.push(g);
         if (!groupements.some(x => x !== g && x.communes.includes(c))) g.communes.push(c);
         activeGroup = g.id;
@@ -888,7 +905,7 @@ document.getElementById("search").addEventListener("keydown", e => {
 });
 
 document.getElementById("export").onclick = () => {
-  const data = { version: 2, date: new Date().toISOString(), groupements, actions };
+  const data = { version: 2, date: new Date().toISOString(), groupements, actions, gaSuppr };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -907,6 +924,7 @@ document.getElementById("fileInput").onchange = (e) => {
       if (!Array.isArray(data.groupements)) throw new Error();
       groupements = data.groupements.filter(g => g.id && g.nom && Array.isArray(g.communes));
       groupements.forEach(g => { g.communes = [...new Set(g.communes)].filter(c => isUnit(c)); });
+      gaSuppr = Array.isArray(data.gaSuppr) ? data.gaSuppr : [];
       dedupeColors();
       activeGroup = null;
       if (Array.isArray(data.actions)) {
@@ -928,12 +946,13 @@ document.getElementById("reset").onclick = () => {
   groupements = [];
   activeGroup = null;
   actions = [];
+  gaSuppr = [];
   saveActions();
   refresh();
 };
 
 function save() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ groupements, activeGroup })); } catch {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ groupements, activeGroup, gaSuppr })); } catch {}
 }
 function load() {
   try {
@@ -942,6 +961,7 @@ function load() {
       groupements = d.groupements;
       dedupeColors();
       activeGroup = d.activeGroup || null;
+      gaSuppr = Array.isArray(d.gaSuppr) ? d.gaSuppr : [];
     }
   } catch {}
 }
@@ -1180,8 +1200,26 @@ save();
         color: PALETTE[(Number.isInteger(g.i) && g.i >= 0 && g.i < PALETTE.length) ? g.i : 0],
         communes: [...new Set(g.m)].filter(c => isUnit(c))
       }));
-    if (!loaded.length) { showToast("Ce lien ne contient aucune donnée exploitable."); return; }
+    if (!loaded.length && !(dec && (dec.tombstones || []).length) && !(dec && (dec.inactive || []).length)) { showToast("Ce lien ne contient aucune donnée exploitable."); return; }
     {
+      let supG = 0, statut = 0;
+      if (dec && Array.isArray(dec.tombstones)) {
+        dec.tombstones.forEach(n => {
+          const key = normGAName(n);
+          if (!gaSuppr.some(s => normGAName(s) === key)) gaSuppr.push(n);
+          groupements.filter(g => normGAName(g.nom) === key).forEach(g => {
+            if (activeGroup === g.id) activeGroup = null;
+            groupements = groupements.filter(x => x.id !== g.id);
+            supG++;
+          });
+        });
+      }
+      if (dec && Array.isArray(dec.inactive)) {
+        dec.inactive.forEach(n => {
+          const key = normGAName(n);
+          groupements.forEach(g => { if (normGAName(g.nom) === key && g.actif !== false) { g.actif = false; statut++; } });
+        });
+      }
       const byName = new Map(groupements.map(g => [normGAName(g.nom), g]));
       const idRemap = new Map();
       let addC = 0, addG = 0, addA = 0, conflits = 0;
@@ -1216,7 +1254,7 @@ save();
       save();
       try { history.replaceState(null, "", location.pathname + location.search); } catch {}
       renderAgenda();
-      setTimeout(() => showToast(addC + addG + addA || conflits ? "Fusion effectuée : +" + addC + " commune(s), +" + addG + " groupement(s), +" + addA + " action(s)" + (conflits ? ", " + conflits + " conflit(s) ignoré(s) (commune déjà prise chez vous)" : "") + "." : "Rien de nouveau : ce lien est déjà intégré à votre version."), 400);
+      setTimeout(() => showToast(addC + addG + addA + supG + statut || conflits ? "Fusion effectuée : +" + addC + " commune(s), +" + addG + " groupement(s), +" + addA + " action(s)" + (supG ? ", " + supG + " groupement(s) supprimé(s)" : "") + (statut ? ", " + statut + " désactivation(s)" : "") + (conflits ? ", " + conflits + " conflit(s) ignoré(s) (commune déjà prise chez vous)" : "") + "." : "Rien de nouveau : ce lien est déjà intégré à votre version."), 400);
     }
   } catch { showToast("Lien de partage illisible ou corrompu — rien n'a été modifié."); }
 })();
