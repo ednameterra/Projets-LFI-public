@@ -278,7 +278,7 @@
       <li><b>Limoux</b> est découpée en 3 secteurs (République, Guynemer, Saint-Jean), d’après l’adresse des 3 GA limouxin : chaque secteur s’attribue séparément.</li>
       <li><b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza).</li>
       <li>L'<b>agenda</b> (panneau de gauche) liste vos actions par date : titre, heure, lieu et groupement. Elles sont incluses dans le lien de partage et l'export JSON ; rien n'apparaît sur la carte pour en garder la lisibilité.</li>
-      <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez. Un lien reçu ne s'applique qu'une fois : ensuite, vos modifications sont conservées même en rechargeant la page — et chacun garde sa propre version (pour partager la vôtre, utilisez à nouveau « Partager par lien »).</li>
+      <li>Tout est <b>enregistré automatiquement</b> dans votre navigateur. Le bouton <b>« Partager par lien »</b> copie un lien qui montre la carte telle que vous la voyez. Un lien reçu est <b>fusionné</b> avec votre version (confirmation demandée si vous avez déjà des données) : rien n'est perdu — pour partager la vôtre, utilisez à nouveau « Partager par lien ».</li>
     </ol>
     <button id="helpClose">C'est parti</button>
   </div>
@@ -1123,7 +1123,7 @@ save();
       perso = raw && Array.isArray(raw.groupements) ? raw.groupements.filter(g => !gaKeys.has(normGAName(g.nom))).length : 0;
     } catch {}
     try { const ra = JSON.parse(localStorage.getItem(AG_KEY)); nActions = Array.isArray(ra) ? ra.length : 0; } catch {}
-    if ((perso || nActions) && !confirm("Ouvrir la carte partagée ? Cela remplacera votre version locale (" + perso + " groupement(s) perso, " + nActions + " action(s) d'agenda).")) return;
+    if ((perso || nActions) && !confirm("Fusionner la carte partagée avec votre version ? Vos données seront conservées (" + perso + " groupement(s) perso, " + nActions + " action(s) d'agenda).")) return;
     const loaded = data
       .filter(g => g && typeof g.n === "string" && Array.isArray(g.m))
       .map(g => ({
@@ -1133,21 +1133,40 @@ save();
         communes: [...new Set(g.m)].filter(c => isUnit(c))
       }));
     if (loaded.length) {
-      groupements = loaded;
-      dedupeColors();
+      const byName = new Map(groupements.map(g => [normGAName(g.nom), g]));
+      const idRemap = new Map();
+      let addC = 0, addG = 0, addA = 0, conflits = 0;
+      loaded.forEach(lg => {
+        const key = normGAName(lg.nom);
+        let target = byName.get(key);
+        if (!target) {
+          target = { id: "g" + Date.now() + "-" + Math.random().toString(36).slice(2, 6), nom: lg.nom, color: PALETTE.includes(lg.color) && !groupements.some(x => x.color === lg.color) ? lg.color : pickColor(), communes: [] };
+          groupements.push(target);
+          byName.set(key, target);
+          addG++;
+        }
+        idRemap.set(lg.id, target.id);
+        lg.communes.forEach(c => {
+          if (target.communes.includes(c)) return;
+          if (groupements.some(x => x !== target && x.communes.includes(c))) { conflits++; return; }
+          target.communes.push(c);
+          addC++;
+        });
+      });
       if (dec && Array.isArray(dec.actions)) {
-        actions = dec.actions
-          .filter(a => a && a.titre && a.date)
-          .map(a => ({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gi >= 0 && a.gi < loaded.length ? loaded[a.gi].id : null, lat: a.lat ?? null, lng: a.lng ?? null }));
+        dec.actions.filter(a => a && a.titre && a.date).forEach(a => {
+          const key = (a.titre + "|" + a.date + "|" + (a.heure || "") + "|" + (a.lieu || "")).toLowerCase();
+          if (actions.some(x => (x.titre + "|" + x.date + "|" + (x.heure || "") + "|" + (x.lieu || "")).toLowerCase() === key)) return;
+          actions.push({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gi >= 0 && a.gi < loaded.length ? (idRemap.get(loaded[a.gi].id) || null) : null, lat: a.lat ?? null, lng: a.lng ?? null });
+          addA++;
+        });
         saveActions();
       }
-      dedupeGAAP();
-      mergeGAAP();
-      activeGroup = null;
+      dedupeColors();
       save();
       try { history.replaceState(null, "", location.pathname + location.search); } catch {}
       renderAgenda();
-      setTimeout(() => showToast("Carte chargée depuis un lien partagé. Vos modifications sont conservées dans ce navigateur."), 400);
+      setTimeout(() => showToast("Fusion effectuée : +" + addC + " commune(s), +" + addG + " groupement(s), +" + addA + " action(s)" + (conflits ? ", " + conflits + " conflit(s) ignoré(s) (commune déjà prise chez vous)" : "") + "."), 400);
     }
   } catch {}
 })();
