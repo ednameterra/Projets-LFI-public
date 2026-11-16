@@ -58,14 +58,21 @@
   }
   .brush-item .tgl:hover { background: rgba(255,252,244,.12); }
 
-  #importGA { width: 100%; margin-top: 6px; }
+  #gaList { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
+  .ga-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    font-size: 0.78rem; padding: 5px 8px; border-radius: 8px;
+    background: rgba(255,252,244,.06);
+  }
+  .ga-item .ga-name { color: #FFFCF4; }
+  .ga-item .ga-add {
+    border: 1px solid rgba(255,252,244,.4); background: transparent; color: #FFFCF4;
+    font-size: .7rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; cursor: pointer; flex-shrink: 0;
+  }
+  .ga-item .ga-add:hover { background: rgba(255,252,244,.12); }
+  .ga-item .ga-ok { border: none; background: none; color: #c9a8ee; font-size: .85rem; flex-shrink: 0; }
 
   .row { display: flex; gap: 6px; margin-top: 8px; }
-  input[type="text"].newg {
-    flex: 1; padding: 7px 10px; font-size: 0.85rem;
-    border-radius: 8px; border: 1px solid #7b13d6;
-    background: #FFFCF4; color: #212320; outline: none;
-  }
   button {
     padding: 7px 13px; font-size: 0.82rem; border: none; border-radius: 8px;
     background: #D1271C; color: #fff; cursor: pointer; font-weight: 700;
@@ -238,11 +245,8 @@
 
       <div class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></div>
       <div id="groupements" class="brush"></div>
-      <div class="row">
-        <input id="newGroup" class="newg" type="text" placeholder="Nouveau groupement…">
-        <button id="addGroup">Ajouter</button>
-      </div>
-      <button class="ghost" id="importGA">Ajouter les GA d'Action Populaire</button>
+      <div class="section-title" style="font-size:.72rem;margin-top:12px">GA d'Action Populaire</div>
+      <div id="gaList"></div>
 
       <div class="section-title">Répartition</div>
       <div id="stats"></div>
@@ -461,6 +465,7 @@ function refresh() {
   renderGroupements();
   renderStats();
   renderAgenda();
+  renderGAList();
   save();
 }
 
@@ -731,18 +736,6 @@ function dedupeColors() {
   });
 }
 
-document.getElementById("addGroup").onclick = () => {
-  const input = document.getElementById("newGroup");
-  const nom = input.value.trim();
-  if (!nom) return;
-  const color = pickColor();
-  groupements.push({ id: "g" + Date.now(), nom, color, communes: [] });
-  input.value = "";
-  activeGroup = groupements[groupements.length - 1].id;
-  refresh();
-};
-document.getElementById("newGroup").addEventListener("keydown", e => { if (e.key === "Enter") document.getElementById("addGroup").click(); });
-
 const GA_AP = [
   { n: "Limoux Causes Communes", c: "11206#0" },
   { n: "Groupe d'action Limoux et environs", c: "11206#1" },
@@ -760,7 +753,7 @@ const GA_AP = [
 function mergeGAAP() {
   let added = 0, assigned = 0;
   GA_AP.forEach(({ n, c }) => {
-    if (groupements.some(g => g.nom.toLowerCase() === n.toLowerCase())) return;
+    if (groupements.some(g => normGAName(g.nom) === normGAName(n))) return;
     const color = pickColor();
     const g = { id: "g" + Date.now() + "-" + added, nom: n, color, communes: [] };
     groupements.push(g);
@@ -769,12 +762,64 @@ function mergeGAAP() {
   });
   return { added, assigned };
 }
-document.getElementById("importGA").onclick = () => {
-  const { added, assigned } = mergeGAAP();
-  if (!added) { showToast("Les GA d'Action Populaire sont déjà présents."); return; }
-  refresh();
-  showToast(`${added} GA d'Action Populaire ajoutés ; ${assigned} commune(s) pré-attribuée(s).`);
-};
+function normGAName(s) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim()
+    .replace(/^(groupe d action populaire|groupe d action|groupe action|ga|groupe)( de la| du| des| de| d)? /, "")
+    .replace(/^(les|la|le|l|du|de la|des|de|d) /, "");
+}
+function dedupeGAAP() {
+  const official = new Map(GA_AP.map(g => [normGAName(g.n), g.n]));
+  const keep = new Map();
+  const drop = new Set();
+  let merged = 0;
+  groupements.forEach(g => {
+    const key = normGAName(g.nom);
+    if (official.has(key)) g.nom = official.get(key);
+    const t = keep.get(key);
+    if (t) {
+      g.communes.forEach(c => { if (!t.communes.includes(c)) t.communes.push(c); });
+      actions.forEach(a => { if (a.gid === g.id) a.gid = t.id; });
+      if (activeGroup === g.id) activeGroup = t.id;
+      drop.add(g);
+      merged++;
+    } else keep.set(key, g);
+  });
+  if (drop.size) groupements = groupements.filter(g => !drop.has(g));
+  if (merged) saveActions();
+  return { merged };
+}
+function renderGAList() {
+  const box = document.getElementById("gaList");
+  if (!box) return;
+  box.innerHTML = "";
+  GA_AP.forEach(({ n, c }) => {
+    const present = groupements.some(g => normGAName(g.nom) === normGAName(n));
+    const row = document.createElement("div");
+    row.className = "ga-item";
+    const name = document.createElement("span");
+    name.className = "ga-name";
+    name.textContent = n;
+    const btn = document.createElement("button");
+    if (present) {
+      btn.className = "ga-ok";
+      btn.textContent = "✓";
+      btn.title = "Déjà présent dans les groupements";
+    } else {
+      btn.className = "ga-add";
+      btn.textContent = "Ajouter";
+      btn.onclick = () => {
+        const g = { id: "g" + Date.now(), nom: n, color: pickColor(), communes: [] };
+        groupements.push(g);
+        if (!groupements.some(x => x !== g && x.communes.includes(c))) g.communes.push(c);
+        activeGroup = g.id;
+        refresh();
+      };
+    }
+    row.append(name, btn);
+    box.appendChild(row);
+  });
+}
 
 document.getElementById("search").addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
@@ -1003,7 +1048,6 @@ function openActionForm(a) {
   document.getElementById("actionOverlay").style.display = "flex";
   initAgMap();
   if (a && a.lat != null && a.lng != null) { agPos = { lat: a.lat, lng: a.lng }; setAgPos(a.lat, a.lng); setTimeout(() => agMapObj && agMapObj.setView([a.lat, a.lng], 15), 60); }
-  else sel.value = a && a.gid && groupements.some(g => g.id === a.gid) ? a.gid : "";
   else if (agMapObj) { document.getElementById("agMapHint").textContent = "Cliquez sur la mini-carte pour placer le lieu du rendez-vous."; }
   if (agMapObj) requestAnimationFrame(() => {
     agMapObj.invalidateSize();
@@ -1049,7 +1093,10 @@ document.getElementById("helpClose").onclick = () => {
 };
 
 load();
+loadActions();
+dedupeGAAP();
 mergeGAAP();
+save();
 (async function loadFromHash() {
   const mb = location.hash.match(/^#b=(.+)$/);
   const mc = location.hash.match(/^#c=(.+)$/);
@@ -1074,23 +1121,24 @@ mergeGAAP();
     if (loaded.length) {
       groupements = loaded;
       dedupeColors();
-      mergeGAAP();
-      activeGroup = null;
-      save();
       if (dec && Array.isArray(dec.actions)) {
         actions = dec.actions
           .filter(a => a && a.titre && a.date)
           .map(a => ({ id: "a" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titre: a.titre, date: a.date, heure: a.heure || "", lieu: a.lieu || "", gid: a.gi >= 0 && a.gi < loaded.length ? loaded[a.gi].id : null, lat: a.lat ?? null, lng: a.lng ?? null }));
         saveActions();
-        renderAgenda();
       }
+      dedupeGAAP();
+      mergeGAAP();
+      activeGroup = null;
+      save();
+      renderAgenda();
       setTimeout(() => showToast("Carte chargée depuis un lien partagé."), 400);
     }
   } catch {}
 })();
-loadActions();
 renderAgenda();
 renderGroupements();
+renderGAList();
 renderStats();
 </script>
 </body>
