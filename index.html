@@ -1116,6 +1116,14 @@ save();
       : mz ? decodeState(new TextDecoder().decode(b64uToBytes(mz[1])))
       : JSON.parse(decodeURIComponent(escape(atob(md[1]))));
     if (!Array.isArray(data)) return;
+    let perso = 0, nActions = 0;
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      const gaKeys = new Set(GA_AP.map(g => normGAName(g.n)));
+      perso = raw && Array.isArray(raw.groupements) ? raw.groupements.filter(g => !gaKeys.has(normGAName(g.nom))).length : 0;
+    } catch {}
+    try { const ra = JSON.parse(localStorage.getItem(AG_KEY)); nActions = Array.isArray(ra) ? ra.length : 0; } catch {}
+    if ((perso || nActions) && !confirm("Ouvrir la carte partagée ? Cela remplacera votre version locale (" + perso + " groupement(s) perso, " + nActions + " action(s) d'agenda).")) return;
     const loaded = data
       .filter(g => g && typeof g.n === "string" && Array.isArray(g.m))
       .map(g => ({
