@@ -57,7 +57,19 @@
     font-size: .7rem; font-weight: 600; padding: 3px 8px; border-radius: 6px; flex-shrink: 0;
   }
   .brush-item .tgl:hover { background: rgba(255,252,244,.12); }
+  .brush-item .pwr {
+    border: 1px solid rgba(255,252,244,.4); background: transparent; color: #FFFCF4;
+    font-size: .7rem; font-weight: 600; padding: 3px 7px; border-radius: 6px; flex-shrink: 0;
+  }
+  .brush-item .pwr:hover { background: rgba(255,252,244,.12); }
+  .brush-item.off { opacity: .45; }
+  .brush-item.off .swatch { background: #5a5b57 !important; }
 
+  #gaDetails { margin-top: 12px; }
+  #gaDetails summary { list-style: none; cursor: pointer; }
+  #gaDetails summary::-webkit-details-marker { display: none; }
+  #gaDetails summary::after { content: " \25b8"; }
+  #gaDetails[open] summary::after { content: " \25be"; }
   #gaList { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
   .ga-item {
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
@@ -245,8 +257,10 @@
 
       <div class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></div>
       <div id="groupements" class="brush"></div>
-      <div class="section-title" style="font-size:.72rem;margin-top:12px">GA d'Action Populaire</div>
-      <div id="gaList"></div>
+      <details id="gaDetails">
+        <summary class="section-title" style="font-size:.72rem">GA d'Action Populaire <span id="gaCount" style="text-transform:none;letter-spacing:0"></span></summary>
+        <div id="gaList"></div>
+      </details>
 
       <div class="section-title">Répartition</div>
       <div id="stats"></div>
@@ -274,7 +288,7 @@
     <ol>
       <li><b>Créez votre groupement</b> (champ « Nouveau groupement ») : il est sélectionné automatiquement.</li>
       <li><b>Cliquez sur les communes</b> pour les attribuer au groupement actif. Une commune déjà prise change automatiquement de main (pas de doublon).</li>
-      <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime ; cliquez sur la <b>pastille</b> de couleur d'un groupement pour la changer (couleurs FI, en évitant les doublons).</li>
+      <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime ; le bouton <b>⏸ / ▶</b> désactive ou réactive un groupement (désactivé = son territoire redevient libre, ses données sont conservées) ; cliquez sur la <b>pastille</b> de couleur d'un groupement pour la changer (couleurs FI, en évitant les doublons).</li>
       <li><b>Limoux</b> est découpée en 3 secteurs (République, Guynemer, Saint-Jean), d’après l’adresse des 3 GA limouxin : chaque secteur s’attribue séparément.</li>
       <li><b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza).</li>
       <li>L'<b>agenda</b> (panneau de gauche) liste vos actions par date : titre, heure, lieu et groupement. Elles sont incluses dans le lien de partage et l'export JSON ; rien n'apparaît sur la carte pour en garder la lisibilité.</li>
@@ -386,7 +400,7 @@ fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geomet
 
 const hoverInfo = document.getElementById("hoverInfo");
 function showHover(code) {
-  const g = groupements.find(g => g.communes.includes(code));
+  const g = actifs().find(g => g.communes.includes(code));
   const pop = populationOf(code);
   const popTxt = pop ? " · " + pop.toLocaleString("fr-FR") + " hab" : "";
   hoverInfo.innerHTML =
@@ -415,8 +429,10 @@ function build(gj) {
   document.getElementById("status").remove();
 }
 
+const actifs = () => groupements.filter(g => g.actif !== false);
+
 function styleFor(code) {
-  const g = groupements.find(g => g.communes.includes(code));
+  const g = actifs().find(g => g.communes.includes(code));
   return {
     fillColor: g ? g.color : "#212320",
     fillOpacity: g ? 0.75 : 0.35,
@@ -435,7 +451,7 @@ function onCommuneClick(code) {
     unassign(code);
     return;
   }
-  const current = groupements.find(g => g.communes.includes(code));
+  const current = actifs().find(g => g.communes.includes(code));
   if (current && current.id === activeGroup) {
     unassign(code);
     return;
@@ -445,7 +461,7 @@ function onCommuneClick(code) {
 }
 
 function assign(code, gid) {
-  groupements.forEach(g => {
+  actifs().forEach(g => {
     const i = g.communes.indexOf(code);
     if (i !== -1 && g.id !== gid) {
       g.communes.splice(i, 1);
@@ -487,7 +503,7 @@ function renderGroupements() {
 
   groupements.forEach(g => {
     const div = document.createElement("div");
-    div.className = "brush-item" + (activeGroup === g.id ? " active" : "");
+    div.className = "brush-item" + (activeGroup === g.id ? " active" : "") + (g.actif === false ? " off" : "");
     div.style.color = g.color;
     const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
     const nUp = actions.filter(a => a.gid === g.id && a.date >= todayStr()).length;
@@ -496,8 +512,12 @@ function renderGroupements() {
       <span style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
       <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.${nUp ? `<br>📅 ${nUp}` : ""}</span>
       <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
+      <button class="pwr" title="${g.actif === false ? "Réactiver ce groupement" : "Désactiver (libère son territoire, sans supprimer)"}">${g.actif === false ? "▶" : "⏸"}</button>
       <button class="del rm" title="Supprimer le groupement">✕</button>`;
-    div.onclick = () => { activeGroup = g.id; renderGroupements(); };
+    div.onclick = () => {
+      if (g.actif === false) { showToast("Groupement désactivé — cliquez sur ▶ pour le réactiver."); return; }
+      activeGroup = g.id; renderGroupements();
+    };
     div.querySelector(".swatch").onclick = (e) => {
       e.stopPropagation();
       const used = new Set(groupements.filter(x => x.id !== g.id).map(x => x.color));
@@ -511,6 +531,20 @@ function renderGroupements() {
       e.stopPropagation();
       if (expandedGroups.has(g.id)) expandedGroups.delete(g.id); else expandedGroups.add(g.id);
       renderGroupements();
+    };
+    div.querySelector(".pwr").onclick = (e) => {
+      e.stopPropagation();
+      if (g.actif === false) {
+        g.actif = true;
+        actifs().forEach(x => {
+          if (x === g) return;
+          g.communes = g.communes.filter(c => !x.communes.includes(c));
+        });
+      } else {
+        g.actif = false;
+        if (activeGroup === g.id) activeGroup = null;
+      }
+      refresh();
     };
     div.querySelector(".rm").onclick = (e) => {
       e.stopPropagation();
@@ -563,8 +597,8 @@ function renderGroupements() {
 function renderStats() {
   const total = UNIT_TOTAL;
   const popTotal = totalPop;
-  const assigned = groupements.reduce((s, g) => s + g.communes.length, 0);
-  const popAssigned = groupements.reduce((s, g) => s + g.communes.reduce((x, c) => x + (populationOf(c) || 0), 0), 0);
+  const assigned = actifs().reduce((s, g) => s + g.communes.length, 0);
+  const popAssigned = actifs().reduce((s, g) => s + g.communes.reduce((x, c) => x + (populationOf(c) || 0), 0), 0);
   document.getElementById("stats").innerHTML =
     `<b>${assigned}</b> / ${total} communes attribuées (${Math.round(100 * assigned / total)} %)<br>` +
     `<b>${fmt(popAssigned)}</b> / ${fmt(popTotal)} habitants couverts` +
@@ -799,8 +833,10 @@ function renderGAList() {
   const box = document.getElementById("gaList");
   if (!box) return;
   box.innerHTML = "";
+  let missing = 0;
   GA_AP.forEach(({ n, c }) => {
     const present = groupements.some(g => normGAName(g.nom) === normGAName(n));
+    if (!present) missing++;
     const row = document.createElement("div");
     row.className = "ga-item";
     const name = document.createElement("span");
@@ -825,6 +861,8 @@ function renderGAList() {
     row.append(name, btn);
     box.appendChild(row);
   });
+  const cnt = document.getElementById("gaCount");
+  if (cnt) cnt.textContent = missing ? `(${missing} à ajouter)` : "(tous ajoutés)";
 }
 
 document.getElementById("search").addEventListener("keydown", e => {
@@ -1148,7 +1186,7 @@ save();
         idRemap.set(lg.id, target.id);
         lg.communes.forEach(c => {
           if (target.communes.includes(c)) return;
-          if (groupements.some(x => x !== target && x.communes.includes(c))) { conflits++; return; }
+          if (actifs().some(x => x !== target && x.communes.includes(c))) { conflits++; return; }
           target.communes.push(c);
           addC++;
         });
