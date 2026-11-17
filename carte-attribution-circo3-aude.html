@@ -200,6 +200,27 @@
     border-radius: 14px; max-width: 400px; width: 90%; padding: 20px 22px;
     max-height: 90vh; overflow-y: auto; position: relative;
   }
+  #shareOverlay {
+    position: fixed; inset: 0; z-index: 3000; background: rgba(33,35,32,.7);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #shareOverlay .card {
+    background: #FFFCF4; color: #212320; border: 1px solid #4C0297;
+    border-radius: 14px; max-width: 420px; width: 90%; padding: 20px 22px;
+    max-height: 90vh; overflow-y: auto; position: relative;
+  }
+  #shareOverlay h2 { font-size: 1rem; color: #D1271C; margin-bottom: 10px; }
+  #shareOverlay .share-hint { font-size: .85rem; line-height: 1.5; margin: 0 0 12px; }
+  #shareUrl {
+    width: 100%; box-sizing: border-box; padding: 9px 10px; border-radius: 8px;
+    border: 1px solid #b5b6b2; font-size: .8rem; margin-bottom: 10px; background: #fff;
+    color: #212320; word-break: break-all;
+  }
+  #shareCopy {
+    width: 100%; padding: 10px; border-radius: 8px; border: none; cursor: pointer;
+    background: #4C0297; color: #FFFCF4; font-weight: 700; font-size: .9rem;
+  }
+  #shareCopy:hover { background: #5d0b77; }
   #actionClose {
     position: absolute; top: 10px; right: 12px;
     border: none; background: none; color: #9a9b98; cursor: pointer;
@@ -304,6 +325,15 @@
       <li><b>En cas de doute</b>, lisez le message affiché en haut de la carte : il explique ce qui vient de se passer. « Tout effacer » est irréversible — exportez d'abord.</li>
     </ol>
     <button id="helpClose">C'est parti</button>
+  </div>
+</div>
+<div id="shareOverlay" style="display:none">
+  <div class="card">
+    <button id="shareClose" title="Fermer" style="position:absolute;top:10px;right:12px;border:none;background:none;font-size:1rem;cursor:pointer;color:#212320">✕</button>
+    <h2>Partager votre carte</h2>
+    <p class="share-hint">Envoyez ce lien au <b>coordinateur</b> (WhatsApp, SMS, e-mail…) : il intégrera vos données à la carte de référence.<br><br>⚠️ Un lien est un <b>instantané</b> de votre carte à cet instant — si vous modifiez encore, regénérez un lien et renvoyez-le.</p>
+    <input id="shareUrl" type="text" readonly>
+    <button id="shareCopy">Copier le lien</button>
   </div>
 </div>
 <div id="actionOverlay" style="display:none">
@@ -1006,11 +1036,17 @@ document.getElementById("share").onclick = () => {
   if (!groupements.length && !actions.length) { showToast("Rien à partager : attribuez des communes ou ajoutez des actions."); return; }
   const u = new URL(".", location.href);
   const base = (location.origin && location.origin !== "null" ? u.origin + u.pathname : "");
-  const url = base + "#b=" + b64uFromBytes(encodeStateBinary());
-  const finish = () => showToast("Lien copié ! Collez-le dans un message pour partager cet état de la carte.");
+  document.getElementById("shareUrl").value = base + "#b=" + b64uFromBytes(encodeStateBinary());
+  document.getElementById("shareOverlay").style.display = "flex";
+};
+document.getElementById("shareClose").onclick = () => document.getElementById("shareOverlay").style.display = "none";
+document.getElementById("shareOverlay").onclick = e => { if (e.target === document.getElementById("shareOverlay")) document.getElementById("shareOverlay").style.display = "none"; };
+document.getElementById("shareCopy").onclick = () => {
+  const inp = document.getElementById("shareUrl");
+  const done = () => { showToast("Lien copié ! Collez-le dans un message au coordinateur."); document.getElementById("shareOverlay").style.display = "none"; };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(url).then(finish, () => prompt("Copiez ce lien :", url));
-  } else prompt("Copiez ce lien :", url);
+    navigator.clipboard.writeText(inp.value).then(done, () => { inp.select(); document.execCommand("copy"); done(); });
+  } else { inp.select(); try { document.execCommand("copy"); } catch {} done(); }
 };
 
 let actions = [];
@@ -1135,6 +1171,7 @@ document.getElementById("actionOverlay").onclick = e => { if (e.target === docum
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") {
     document.getElementById("actionOverlay").style.display = "none";
+    document.getElementById("shareOverlay").style.display = "none";
     helpOverlay.style.display = "none";
   }
 });
@@ -1190,7 +1227,7 @@ save();
       perso = raw && Array.isArray(raw.groupements) ? raw.groupements.filter(g => !gaKeys.has(normGAName(g.nom))).length : 0;
     } catch {}
     try { const ra = JSON.parse(localStorage.getItem(AG_KEY)); nActions = Array.isArray(ra) ? ra.length : 0; } catch {}
-    const refus = (perso || nActions) && !confirm("Fusionner la carte partagée avec votre version ? Vos données seront conservées (" + perso + " groupement(s) perso, " + nActions + " action(s) d'agenda).");
+    const refus = (perso || nActions) && !confirm("Un autre GA vous envoie sa carte. L'ajouter à la vôtre ?\n\nRien ne sera effacé : vous gardez vos " + perso + " groupement(s) perso et vos " + nActions + " action(s).");
     if (refus) { showToast("Fusion annulée : votre version est inchangée. Rechargez la page pour réessayer."); return; }
     const loaded = data
       .filter(g => g && typeof g.n === "string" && Array.isArray(g.m))
