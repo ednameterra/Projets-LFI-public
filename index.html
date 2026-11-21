@@ -37,6 +37,15 @@
   }
   #search:focus { border-color: #f9c900; }
 
+  #searchWrap { position: relative; }
+  #searchSuggest {
+    display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: #FFFCF4; border: 1px solid #7b13d6; border-radius: 8px;
+    box-shadow: 0 8px 18px rgba(33,35,32,.3); overflow: hidden; z-index: 1200;
+  }
+  .sug-item { padding: 8px 11px; font-size: 0.88rem; cursor: pointer; color: #212320; }
+  .sug-item.sug-active { background: #4C0297; color: #FFFCF4; }
+
   .brush { display: flex; flex-direction: column; gap: 5px; }
   .brush-item {
     display: flex; align-items: center; gap: 9px;
@@ -274,7 +283,10 @@
       </div>
 
       <div class="section-title">Rechercher une commune</div>
-      <input id="search" type="text" placeholder="Nom de la commune…">
+      <div id="searchWrap">
+        <input id="search" type="text" placeholder="Nom de la commune…" autocomplete="off" aria-expanded="false" aria-controls="searchSuggest">
+        <div id="searchSuggest" role="listbox"></div>
+      </div>
 
       <div class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></div>
       <div id="groupements" class="brush"></div>
@@ -310,6 +322,7 @@
       <li><b>Créez votre groupement</b> (champ « Nouveau groupement ») : il est sélectionné automatiquement.</li>
       <li><b>Cliquez sur les communes</b> pour les attribuer au groupement actif. Une commune déjà prise change automatiquement de main (pas de doublon).</li>
       <li>La <b>gomme</b> libère une commune ; le <b>clic droit</b> sur un groupement le renomme ; ✕ le supprime ; le bouton <b>⏸ / ▶</b> désactive ou réactive un groupement (désactivé = son territoire redevient libre, ses données sont conservées) ; cliquez sur la <b>pastille</b> de couleur d'un groupement pour la changer (couleurs FI, en évitant les doublons).</li>
+      <li><b>Recherche</b> : tapez quelques lettres dans « Rechercher une commune » — des <b>suggestions</b> apparaissent (insensibles aux majuscules et accents). Flèches ↑ ↓ pour naviguer, <b>Entrée</b> ou clic pour zoomer.</li>
       <li><b>Limoux</b> est découpée en 3 secteurs (République, Guynemer, Saint-Jean), d’après l’adresse des 3 GA limouxin : chaque secteur s’attribue séparément.</li>
       <li><b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza).</li>
       <li>L'<b>agenda</b> (panneau de gauche) liste vos actions par date : titre, heure, lieu et groupement. Elles sont incluses dans le lien de partage et l'export JSON ; rien n'apparaît sur la carte pour en garder la lisibilité.</li>
@@ -652,6 +665,7 @@ const popByCode = {};
 COMMUNES_INFO.forEach(c => { popByCode[c.code] = c.population; });
 let totalPop = 0;
 const names = {};
+const normTxt = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 COMMUNES_INFO.forEach(c => { names[c.code] = c.nom; totalPop += c.population || 0; });
 Object.entries(SPLIT_GEOMS).forEach(([code, secs]) => {
   secs.forEach((sec, i) => { names[code + "#" + i] = sec.nom; popByCode[code + "#" + i] = sec.pop; });
@@ -921,17 +935,78 @@ function renderGAList() {
   if (cnt) cnt.textContent = missing ? `(${missing} à ajouter)` : "(tous ajoutés)";
 }
 
-document.getElementById("search").addEventListener("keydown", e => {
-  if (e.key !== "Enter") return;
-  const q = e.target.value.trim().toLowerCase();
-  if (!q) return;
-  const code = Object.keys(names).find(c => names[c].toLowerCase().includes(q));
-  if (code && geoLayer) {
-    const l = layers[code];
+const searchInput = document.getElementById("search");
+const suggestBox = document.getElementById("searchSuggest");
+let sugItems = [], sugIdx = -1;
+
+function hideSuggest() {
+  suggestBox.style.display = "none";
+  suggestBox.innerHTML = "";
+  sugItems = []; sugIdx = -1;
+  searchInput.setAttribute("aria-expanded", "false");
+}
+function renderSuggest() {
+  suggestBox.innerHTML = "";
+  sugItems.forEach((code, i) => {
+    const d = document.createElement("div");
+    d.className = "sug-item" + (i === sugIdx ? " sug-active" : "");
+    d.setAttribute("role", "option");
+    d.textContent = names[code];
+    d.addEventListener("mousedown", e => { e.preventDefault(); pickSuggestion(code); });
+    suggestBox.appendChild(d);
+  });
+  suggestBox.style.display = sugItems.length ? "block" : "none";
+  searchInput.setAttribute("aria-expanded", sugItems.length ? "true" : "false");
+}
+function pickSuggestion(code) {
+  searchInput.value = names[code];
+  hideSuggest();
+  const l = layers[code];
+  if (l && geoLayer) {
     map.fitBounds(l.getBounds(), { maxZoom: 11 });
     l.fire("mouseover");
     setTimeout(() => l.fire("mouseout"), 1500);
+  }
+}
+function computeSuggest() {
+  const q = normTxt(searchInput.value.trim());
+  if (!q) { hideSuggest(); return; }
+  const starts = [], cont = [];
+  for (const c of Object.keys(names)) {
+    if (!layers[c]) continue;
+    const n = normTxt(names[c]);
+    if (n.startsWith(q)) starts.push(c);
+    else if (n.includes(q)) cont.push(c);
+  }
+  sugItems = starts.concat(cont).slice(0, 6);
+  sugIdx = sugItems.length ? 0 : -1;
+  renderSuggest();
+}
+function doSearchFallback() {
+  const q = normTxt(searchInput.value.trim());
+  if (!q) return;
+  const code = Object.keys(names).find(c => layers[c] && normTxt(names[c]).includes(q));
+  if (code && geoLayer) {
+    map.fitBounds(layers[code].getBounds(), { maxZoom: 11 });
+    layers[code].fire("mouseover");
+    setTimeout(() => layers[code].fire("mouseout"), 1500);
   } else showToast("Aucune commune trouvée.");
+}
+searchInput.addEventListener("input", computeSuggest);
+searchInput.addEventListener("keydown", e => {
+  if (e.key === "ArrowDown" && sugItems.length) {
+    e.preventDefault(); sugIdx = (sugIdx + 1) % sugItems.length; renderSuggest(); return;
+  }
+  if (e.key === "ArrowUp" && sugItems.length) {
+    e.preventDefault(); sugIdx = (sugIdx - 1 + sugItems.length) % sugItems.length; renderSuggest(); return;
+  }
+  if (e.key === "Escape") { hideSuggest(); return; }
+  if (e.key !== "Enter") return;
+  if (sugItems.length && sugIdx >= 0) { e.preventDefault(); pickSuggestion(sugItems[sugIdx]); return; }
+  doSearchFallback();
+});
+document.addEventListener("click", e => {
+  if (e.target !== searchInput && !suggestBox.contains(e.target)) hideSuggest();
 });
 
 document.getElementById("export").onclick = () => {
