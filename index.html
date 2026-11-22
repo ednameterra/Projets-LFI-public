@@ -79,7 +79,10 @@
   .brush-item.off { opacity: .45; }
   .brush-item.off .swatch { background: #5a5b57 !important; }
 
-  .gap-block { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,252,244,.18); }
+  #newGrpRow { display: flex; gap: 6px; margin-bottom: 8px; }
+  #newGrpName { flex: 1; min-width: 0; padding: 7px 10px; font-size: 0.85rem;
+    border-radius: 8px; border: 1px solid #7b13d6; background: #FFFCF4; color: #212320; outline: none; }
+  #newGrpName:focus { border-color: #f9c900; }
   #gaList { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
   .ga-item {
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
@@ -302,14 +305,21 @@
       </div>
     </header>
     <div class="content">
+      <div class="hint">
+        Sélectionnez un <b>groupement</b> ci-dessous, puis cliquez sur les communes de la carte pour les lui attribuer.
+        Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
+        ⚠ <b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza). <b>Limoux</b> est découpée en 3 secteurs, un par GA limouxin.
+      </div>
+
       <details class="fold" id="foldGrp" open>
         <summary class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></summary>
         <div class="fold-body">
-          <div id="groupements" class="brush"></div>
-          <div class="gap-block">
-            <div class="section-title" style="font-size:.72rem">GA d'Action Populaire <span id="gaCount" style="text-transform:none;letter-spacing:0"></span></div>
-            <div id="gaList"></div>
+          <div id="newGrpRow">
+            <input id="newGrpName" type="text" maxlength="60" placeholder="Nouveau groupement…" list="gaOfficial" autocomplete="off">
+            <datalist id="gaOfficial"></datalist>
+            <button class="ghost" id="newGrpBtn">Créer</button>
           </div>
+          <div id="groupements" class="brush"></div>
         </div>
       </details>
 
@@ -331,12 +341,6 @@
       <div id="searchWrap">
         <input id="search" type="text" placeholder="Nom de la commune…" autocomplete="off" aria-expanded="false" aria-controls="searchSuggest">
         <div id="searchSuggest" role="listbox"></div>
-      </div>
-
-      <div class="hint">
-        Sélectionnez un <b>groupement</b> ci-dessus, puis cliquez sur les communes de la carte pour les lui attribuer.
-        Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
-        ⚠ <b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza). <b>Limoux</b> est découpée en 3 secteurs, un par GA limouxin.
       </div>
 
       <details class="fold" id="foldRep">
@@ -394,7 +398,7 @@
       <li><b>Vos données vivent dans votre navigateur</b>, sur votre appareil. Recharger ou fermer la page ne perd rien ; changer d'appareil oui — utilisez alors un lien ou l'export JSON.</li>
       <li><b>Chaque GA envoie ses liens uniquement au coordinateur</b>, pas entre eux. Après chaque modification, regénérez un lien et renvoyez-le (un lien est un instantané).</li>
       <li><b>Le coordinateur</b> ouvre chaque lien reçu, confirme la fusion, corrige les conflits (sa version prime) puis renvoie sa propre carte à jour à qui en a besoin.</li>
-      <li><b>Groupements</b> : ⏸ désactive un GA inactif (données conservées) ; ✕ supprime définitivement. <b>Ces deux statuts se propagent par les liens</b> : les destinataires verront le GA retiré ou désactivé chez eux. Pour le rétablir, bouton « Ajouter » dans la liste GA d'Action Populaire. Ne renommez pas les 12 GA officiels. Une commune = un seul groupement actif, toujours.</li>
+      <li><b>Groupements</b> : ⏸ désactive un GA inactif (données conservées) ; ✕ supprime définitivement. <b>Ces deux statuts se propagent par les liens</b> : les destinataires verront le GA retiré ou désactivé chez eux. Pour le rétablir, retapez son nom dans le champ « Nouveau groupement » (il est proposé en suggestion). Ne renommez pas les 12 GA officiels. Une commune = un seul groupement actif, toujours.</li>
       <li><b>En cas de doute</b>, lisez le message affiché en haut de la carte : il explique ce qui vient de se passer. « Tout effacer » est irréversible — exportez d'abord.</li>
     </ol>
     <button id="helpClose">C'est parti</button>
@@ -610,6 +614,22 @@ function setAbstentionMode(on) {
   if (geoLayer) geoLayer.eachLayer(l => l.setStyle(currentStyle(l.feature.properties.code)));
 }
 document.getElementById("abstToggle").onclick = () => setAbstentionMode(!abstentionMode);
+
+function createGroupement(nom) {
+  nom = (nom || "").trim();
+  if (!nom) { showToast("Donnez un nom au groupement."); return; }
+  if (groupements.some(g => normGAName(g.nom) === normGAName(nom))) { showToast("Un groupement porte déjà ce nom."); return; }
+  const g = { id: "g" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), nom, color: pickColor(), communes: [] };
+  gaSuppr = gaSuppr.filter(s => normGAName(s) !== normGAName(nom));
+  groupements.push(g);
+  activeGroup = g.id;
+  expandedGroups.add(g.id);
+  document.getElementById("newGrpName").value = "";
+  refresh();
+  showToast("\u00ab " + nom + " \u00bb créé : cliquez sur les communes pour les attribuer.");
+}
+document.getElementById("newGrpBtn").onclick = () => createGroupement(document.getElementById("newGrpName").value);
+document.getElementById("newGrpName").addEventListener("keydown", e => { if (e.key === "Enter") createGroupement(e.target.value); });
 function renderAbstLegend() {
   const a = ABST_CLASSES[abstYear()];
   document.getElementById("abstLegendRows").innerHTML = a.map(([lim, col], i) => {
@@ -1102,40 +1122,11 @@ function dedupeGAAP() {
   return { merged };
 }
 function renderGAList() {
-  const box = document.getElementById("gaList");
-  if (!box) return;
-  box.innerHTML = "";
-  let missing = 0;
-  GA_AP.forEach(({ n, c }) => {
-    const present = groupements.some(g => normGAName(g.nom) === normGAName(n));
-    if (!present) missing++;
-    const row = document.createElement("div");
-    row.className = "ga-item";
-    const name = document.createElement("span");
-    name.className = "ga-name";
-    name.textContent = n;
-    const btn = document.createElement("button");
-    if (present) {
-      btn.className = "ga-ok";
-      btn.textContent = "✓";
-      btn.title = "Déjà présent dans les groupements";
-    } else {
-      btn.className = "ga-add";
-      btn.textContent = "Ajouter";
-      btn.onclick = () => {
-        const g = { id: "g" + Date.now(), nom: n, color: pickColor(), communes: [] };
-        gaSuppr = gaSuppr.filter(s => normGAName(s) !== normGAName(n));
-        groupements.push(g);
-        if (!groupements.some(x => x !== g && x.communes.includes(c))) g.communes.push(c);
-        activeGroup = g.id;
-        refresh();
-      };
-    }
-    row.append(name, btn);
-    box.appendChild(row);
-  });
-  const cnt = document.getElementById("gaCount");
-  if (cnt) cnt.textContent = missing ? `(${missing} à ajouter)` : "(tous ajoutés)";
+  const dl = document.getElementById("gaOfficial");
+  if (!dl) return;
+  const present = new Set(groupements.map(g => normGAName(g.nom)));
+  dl.innerHTML = GA_AP.filter(a => !present.has(normGAName(a.n)))
+    .map(a => '<option value="' + escapeHtml(a.n) + '">').join("");
 }
 
 const searchInput = document.getElementById("search");
