@@ -734,6 +734,9 @@ function abstCard(opts) {
   if (opts.gid) {
     card.addEventListener("mouseenter", () => { hoverGA = opts.gid; applyHighlight(); });
     card.addEventListener("mouseleave", () => { if (hoverGA === opts.gid) { hoverGA = null; applyHighlight(); } });
+  } else {
+    card.addEventListener("mouseenter", () => { hoverGA = "none"; applyHighlight(); });
+    card.addEventListener("mouseleave", () => { if (hoverGA === "none") { hoverGA = null; applyHighlight(); } });
   }
   card.innerHTML =
     `<div class="abs-name">${opts.dot != null ? `<span class="hi-dot" style="background:${opts.dot}"></span>` : ""}` +
@@ -781,13 +784,13 @@ function renderAbstStats() {
 let hoverGA = null; // groupement survolé dans le panneau (surbrillance carte)
 function applyHighlight() {
   if (!geoLayer) return;
-  const target = hoverGA ? groupements.find(g => g.id === hoverGA)
+  const target = hoverGA ? (hoverGA === "none" ? null : groupements.find(g => g.id === hoverGA))
     : (activeGroup && activeGroup !== "erase" ? groupements.find(g => g.id === activeGroup) : null);
   geoLayer.eachLayer(l => {
     const code = l.feature.properties.code;
     const base = currentStyle(code);
     if (target && target.communes.includes(code)) {
-      const hl = { ...base, weight: 3, color: "#FFFCF4" };
+      const hl = { ...base, weight: 3, color: abstentionMode ? "#4C0297" : "#FFFCF4" };
       if (!abstentionMode) hl.fillOpacity = Math.min(0.95, base.fillOpacity + 0.2);
       l.setStyle(hl);
       if (l.bringToFront) l.bringToFront();
