@@ -618,6 +618,7 @@ function setAbstentionMode(on) {
   document.getElementById("abstRounds").style.display = on ? "flex" : "none";
   document.getElementById("abstLegend").style.display = on ? "block" : "none";
   if (geoLayer) geoLayer.eachLayer(l => l.setStyle(currentStyle(l.feature.properties.code)));
+  applyHighlight();
 }
 document.getElementById("abstToggle").onclick = () => setAbstentionMode(!abstentionMode);
 
@@ -730,6 +731,10 @@ function abstCard(opts) {
   const delta = (t[3] && t[1] && t[3][0] && t[1][0]) ? abstPct(t[3]) - abstPct(t[1]) : null;
   const card = document.createElement("div");
   card.className = "abs-card" + (opts.ref ? " abs-ref" : "");
+  if (opts.gid) {
+    card.addEventListener("mouseenter", () => { hoverGA = opts.gid; applyHighlight(); });
+    card.addEventListener("mouseleave", () => { if (hoverGA === opts.gid) { hoverGA = null; applyHighlight(); } });
+  }
   card.innerHTML =
     `<div class="abs-name">${opts.dot != null ? `<span class="hi-dot" style="background:${opts.dot}"></span>` : ""}` +
     `<span>${escapeHtml(opts.nom)}</span>` +
@@ -758,7 +763,7 @@ function renderAbstStats() {
   }));
   gas.forEach(g => {
     const t = abstAgg(g.communes);
-    box.appendChild(abstCard({ nom: g.nom, dot: g.color, n: new Set(g.communes.map(c => c.split("#")[0])).size, t }));
+    box.appendChild(abstCard({ nom: g.nom, dot: g.color, n: new Set(g.communes.map(c => c.split("#")[0])).size, t, gid: g.id }));
   });
   const attrib = new Set();
   gas.forEach(g => g.communes.forEach(code => attrib.add(code.split("#")[0])));
@@ -780,9 +785,11 @@ function applyHighlight() {
     : (activeGroup && activeGroup !== "erase" ? groupements.find(g => g.id === activeGroup) : null);
   geoLayer.eachLayer(l => {
     const code = l.feature.properties.code;
-    const base = styleFor(code);
+    const base = currentStyle(code);
     if (target && target.communes.includes(code)) {
-      l.setStyle({ ...base, weight: 3, color: "#FFFCF4", fillOpacity: Math.min(0.95, base.fillOpacity + 0.2) });
+      const hl = { ...base, weight: 3, color: "#FFFCF4" };
+      if (!abstentionMode) hl.fillOpacity = Math.min(0.95, base.fillOpacity + 0.2);
+      l.setStyle(hl);
       if (l.bringToFront) l.bringToFront();
     } else {
       l.setStyle(base);
@@ -1284,11 +1291,13 @@ document.getElementById("reset").onclick = () => {
 function save() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ groupements, activeGroup, gaSuppr })); } catch {}
 }
+function fixNomCoquille(n) { return typeof n === "string" ? n.replace(/Corb[`\u0027\u2019\u00B4]?ères/gi, "Corbières") : n; }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (d && Array.isArray(d.groupements)) {
       groupements = d.groupements;
+      groupements.forEach(g => { g.nom = fixNomCoquille(g.nom); });
       dedupeColors();
       activeGroup = d.activeGroup || null;
       gaSuppr = Array.isArray(d.gaSuppr) ? d.gaSuppr : [];
@@ -1533,7 +1542,7 @@ save();
       .filter(g => g && typeof g.n === "string" && Array.isArray(g.m))
       .map(g => ({
         id: "g" + Math.random().toString(36).slice(2),
-        nom: g.n,
+        nom: fixNomCoquille(g.n),
         color: PALETTE[(Number.isInteger(g.i) && g.i >= 0 && g.i < PALETTE.length) ? g.i : 0],
         communes: [...new Set(g.m)].filter(c => isUnit(c))
       }));
