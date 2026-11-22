@@ -79,11 +79,7 @@
   .brush-item.off { opacity: .45; }
   .brush-item.off .swatch { background: #5a5b57 !important; }
 
-  #gaDetails { margin-top: 12px; }
-  #gaDetails summary { list-style: none; cursor: pointer; }
-  #gaDetails summary::-webkit-details-marker { display: none; }
-  #gaDetails summary::after { content: " \25b8"; }
-  #gaDetails[open] summary::after { content: " \25be"; }
+  .gap-block { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,252,244,.18); }
   #gaList { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
   .ga-item {
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
@@ -310,10 +306,10 @@
         <summary class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></summary>
         <div class="fold-body">
           <div id="groupements" class="brush"></div>
-          <details id="gaDetails">
-            <summary class="section-title" style="font-size:.72rem">GA d'Action Populaire <span id="gaCount" style="text-transform:none;letter-spacing:0"></span></summary>
+          <div class="gap-block">
+            <div class="section-title" style="font-size:.72rem">GA d'Action Populaire <span id="gaCount" style="text-transform:none;letter-spacing:0"></span></div>
             <div id="gaList"></div>
-          </details>
+          </div>
         </div>
       </details>
 
@@ -331,16 +327,16 @@
         </div>
       </details>
 
-      <div class="hint">
-        Sélectionnez un <b>groupement</b> ci-dessus, puis cliquez sur les communes de la carte pour les lui attribuer.
-        Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
-        ⚠ <b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza). <b>Limoux</b> est découpée en 3 secteurs, un par GA limouxin.
-      </div>
-
       <div class="section-title">Rechercher une commune</div>
       <div id="searchWrap">
         <input id="search" type="text" placeholder="Nom de la commune…" autocomplete="off" aria-expanded="false" aria-controls="searchSuggest">
         <div id="searchSuggest" role="listbox"></div>
+      </div>
+
+      <div class="hint">
+        Sélectionnez un <b>groupement</b> ci-dessus, puis cliquez sur les communes de la carte pour les lui attribuer.
+        Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
+        ⚠ <b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza). <b>Limoux</b> est découpée en 3 secteurs, un par GA limouxin.
       </div>
 
       <details class="fold" id="foldRep">
