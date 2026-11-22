@@ -83,6 +83,7 @@
   #newGrpName { flex: 1; min-width: 0; padding: 7px 10px; font-size: 0.85rem;
     border-radius: 8px; border: 1px solid #7b13d6; background: #FFFCF4; color: #212320; outline: none; }
   #newGrpName:focus { border-color: #f9c900; }
+  .gap-block { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(255,252,244,.18); }
   .ga-item {
     display: flex; align-items: center; justify-content: space-between; gap: 6px;
     font-size: 0.78rem; padding: 5px 8px; border-radius: 8px;
@@ -319,6 +320,13 @@
             <button class="ghost" id="newGrpBtn">Créer</button>
           </div>
           <div id="groupements" class="brush"></div>
+          <div class="gap-block">
+            <div class="section-title" style="font-size:.72rem">Rechercher une commune</div>
+            <div id="searchWrap">
+              <input id="search" type="text" placeholder="Nom de la commune…" autocomplete="off" aria-expanded="false" aria-controls="searchSuggest">
+              <div id="searchSuggest" role="listbox"></div>
+            </div>
+          </div>
         </div>
       </details>
 
@@ -335,12 +343,6 @@
           <div id="abstStats"></div>
         </div>
       </details>
-
-      <div class="section-title">Rechercher une commune</div>
-      <div id="searchWrap">
-        <input id="search" type="text" placeholder="Nom de la commune…" autocomplete="off" aria-expanded="false" aria-controls="searchSuggest">
-        <div id="searchSuggest" role="listbox"></div>
-      </div>
 
       <details class="fold" id="foldRep">
         <summary class="section-title">Répartition</summary>
