@@ -821,7 +821,8 @@ function renderGroupements() {
     div.addEventListener("mouseleave", () => { hoverGA = null; applyHighlight(); });
     div.onclick = () => {
       if (g.actif === false) { showToast("Groupement désactivé — cliquez sur ▶ pour le réactiver."); return; }
-      activeGroup = g.id; renderGroupements();
+      activeGroup = (activeGroup === g.id) ? null : g.id; // re-clic = désélection
+      renderGroupements();
     };
     div.querySelector(".swatch").onclick = (e) => {
       e.stopPropagation();
