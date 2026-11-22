@@ -773,6 +773,23 @@ function renderAbstStats() {
   }
 }
 
+let hoverGA = null; // groupement survolé dans le panneau (surbrillance carte)
+function applyHighlight() {
+  if (!geoLayer) return;
+  const target = hoverGA ? groupements.find(g => g.id === hoverGA)
+    : (activeGroup && activeGroup !== "erase" ? groupements.find(g => g.id === activeGroup) : null);
+  geoLayer.eachLayer(l => {
+    const code = l.feature.properties.code;
+    const base = styleFor(code);
+    if (target && target.communes.includes(code)) {
+      l.setStyle({ ...base, weight: 3, color: "#FFFCF4", fillOpacity: Math.min(0.95, base.fillOpacity + 0.2) });
+      if (l.bringToFront) l.bringToFront();
+    } else {
+      l.setStyle(base);
+    }
+  });
+}
+
 function renderGroupements() {
   const box = document.getElementById("groupements");
   box.innerHTML = "";
@@ -800,6 +817,8 @@ function renderGroupements() {
         <button class="pwr" title="${g.actif === false ? "Réactiver ce groupement" : "Désactiver (libère son territoire, sans supprimer)"}">${g.actif === false ? "▶" : "⏸"}</button>
         <button class="del rm" title="Supprimer le groupement">✕</button>
       </div>`;
+    div.addEventListener("mouseenter", () => { hoverGA = g.id; applyHighlight(); });
+    div.addEventListener("mouseleave", () => { hoverGA = null; applyHighlight(); });
     div.onclick = () => {
       if (g.actif === false) { showToast("Groupement désactivé — cliquez sur ▶ pour le réactiver."); return; }
       activeGroup = g.id; renderGroupements();
@@ -880,6 +899,7 @@ function renderGroupements() {
   const mode = document.getElementById("brushMode");
   const g = groupements.find(g => g.id === activeGroup);
   mode.textContent = g ? `→ pinceau : ${g.nom}` : (activeGroup === "erase" ? "→ gomme" : "");
+  applyHighlight();
 }
 
 function renderStats() {
