@@ -53,15 +53,16 @@
 
   .brush { display: flex; flex-direction: column; gap: 5px; }
   .brush-item {
-    display: flex; align-items: center; gap: 8px;
     padding: 8px 10px; border-radius: 9px; cursor: pointer;
     border: 1px solid #8a4fd0; background: #5d0b77; font-size: 0.88rem;
   }
+  .brush-item .bi-main { display: flex; align-items: flex-start; gap: 8px; }
+  .brush-item .bi-sub { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
   .brush-item:hover { border-color: #FFFCF4; }
   .brush-item.active { border-color: currentColor; background: #6d1cae; }
   .brush-item .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; cursor: pointer; }
   .brush-item .gname { flex: 1 1 auto; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: break-word; line-height: 1.25; }
-  .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #d9c7f2; text-align: right; line-height: 1.3; flex-shrink: 0; }
+  .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #d9c7f2; text-align: left; line-height: 1.3; flex-shrink: 0; }
   .brush-item .del {
     border: none; background: none; color: #c9a8ee; cursor: pointer;
     width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
@@ -778,7 +779,7 @@ function renderGroupements() {
   const erase = document.createElement("div");
   erase.className = "brush-item" + (activeGroup === "erase" ? " active" : "");
   erase.style.color = "#FFFCF4";
-  erase.innerHTML = `<span class="swatch" style="background:#212320;border:1px solid #5a5b57"></span> Gomme (libérer une commune)`;
+  erase.innerHTML = `<div class="bi-main"><span class="swatch" style="background:#212320;border:1px solid #5a5b57"></span> Gomme (libérer une commune)</div>`;
   erase.onclick = () => { activeGroup = "erase"; renderGroupements(); };
   box.appendChild(erase);
 
@@ -789,12 +790,16 @@ function renderGroupements() {
     const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
     const nUp = actions.filter(a => a.gid === g.id && a.date >= todayStr()).length;
     div.innerHTML = `
-      <span class="swatch" style="background:${g.color}" title="Cliquer pour changer la couleur"></span>
-      <span class="gname" style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
-      <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.${nUp ? `<br>📅 ${nUp}` : ""}</span>
-      <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
-      <button class="pwr" title="${g.actif === false ? "Réactiver ce groupement" : "Désactiver (libère son territoire, sans supprimer)"}">${g.actif === false ? "▶" : "⏸"}</button>
-      <button class="del rm" title="Supprimer le groupement">✕</button>`;
+      <div class="bi-main">
+        <span class="swatch" style="background:${g.color}" title="Cliquer pour changer la couleur"></span>
+        <span class="gname" style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
+      </div>
+      <div class="bi-sub">
+        <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.${nUp ? `<br>🗓 ${nUp}` : ""}</span>
+        <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
+        <button class="pwr" title="${g.actif === false ? "Réactiver ce groupement" : "Désactiver (libère son territoire, sans supprimer)"}">${g.actif === false ? "▶" : "⏸"}</button>
+        <button class="del rm" title="Supprimer le groupement">✕</button>
+      </div>`;
     div.onclick = () => {
       if (g.actif === false) { showToast("Groupement désactivé — cliquez sur ▶ pour le réactiver."); return; }
       activeGroup = g.id; renderGroupements();
