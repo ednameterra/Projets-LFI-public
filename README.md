@@ -44,5 +44,6 @@ Fonctionne sur navigateur (ordinateur et téléphone), sans installation ni comp
 
 - Découpage : 292 communes (291 entières + la partie de Carcassonne en 3ᵉ circo : quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza) ; Limoux découpée en 3 secteurs, un par GA limouxin.
 - Liens de partage : format binaire compact (`#b=`), compatible avec les anciens formats (`#d=`, `#z=`, `#c=`).
+- Mode abstention : le bouton « Abstention » (panneau de gauche) colore chaque commune selon son taux d'abstention au 2ᵈ tour des législatives 2024 (cinq classes, légende affichée sur la carte). Données officielles du Ministère de l'Intérieur (résultats définitifs par commune, data.gouv.fr), embarquées dans la page — aucun fetch supplémentaire.
 - Charte graphique FI ; voile violet sur le territoire hors circonscription.
 - Données stockées localement (localStorage), aucune donnée transmise à un serveur.
