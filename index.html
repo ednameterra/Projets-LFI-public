@@ -29,6 +29,11 @@
     color: #c9a8ee; margin: 16px 0 8px;
   }
   .section-title:first-child { margin-top: 4px; }
+  details.fold { margin-top: 10px; }
+  details.fold > summary { cursor: pointer; user-select: none; }
+  details.fold > summary::before { content: "\25B8"; display: inline-block; width: 1em; color: #d9c7f2; }
+  details.fold[open] > summary::before { content: "\25BE"; }
+  .fold-body { margin-top: 6px; }
 
   #search {
     width: 100%; padding: 8px 11px; font-size: 0.88rem;
@@ -301,8 +306,33 @@
       </div>
     </header>
     <div class="content">
+      <details class="fold" id="foldGrp" open>
+        <summary class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></summary>
+        <div class="fold-body">
+          <div id="groupements" class="brush"></div>
+          <details id="gaDetails">
+            <summary class="section-title" style="font-size:.72rem">GA d'Action Populaire <span id="gaCount" style="text-transform:none;letter-spacing:0"></span></summary>
+            <div id="gaList"></div>
+          </details>
+        </div>
+      </details>
+
+      <details class="fold" id="foldAbst">
+        <summary class="section-title">Abstention par territoire</summary>
+        <div class="fold-body">
+          <button class="ghost" id="abstToggle">Colorer la carte · législatives 2022-2024</button>
+          <div id="abstRounds">
+            <button class="ghost" data-round="t1-22">T1 2022</button>
+            <button class="ghost" data-round="t2-22">T2 2022</button>
+            <button class="ghost" data-round="t1-24">T1 2024</button>
+            <button class="ghost" data-round="t2-24">T2 2024</button>
+          </div>
+          <div id="abstStats"></div>
+        </div>
+      </details>
+
       <div class="hint">
-        Sélectionnez un <b>groupement</b> ci-dessous, puis cliquez sur les communes de la carte pour les lui attribuer.
+        Sélectionnez un <b>groupement</b> ci-dessus, puis cliquez sur les communes de la carte pour les lui attribuer.
         Une commune ne peut appartenir qu'à <b>un seul</b> groupement : l'attribution est automatiquement retirée à l'ancien.
         ⚠ <b>Carcassonne</b> est partagée entre circonscriptions : seule sa partie en 3ᵉ circo est affichée (quartiers Saint-Jacques, Le Viguier, Grèzes, Salvaza). <b>Limoux</b> est découpée en 3 secteurs, un par GA limouxin.
       </div>
@@ -313,39 +343,30 @@
         <div id="searchSuggest" role="listbox"></div>
       </div>
 
-      <div class="section-title">Analyses</div>
-      <button class="ghost" id="abstToggle">Abstention · législatives 2022-2024</button>
-      <div id="abstRounds">
-        <button class="ghost" data-round="t1-22">T1 2022</button>
-        <button class="ghost" data-round="t2-22">T2 2022</button>
-        <button class="ghost" data-round="t1-24">T1 2024</button>
-        <button class="ghost" data-round="t2-24">T2 2024</button>
-      </div>
-
-      <div class="section-title">Abstention par territoire</div>
-      <div id="abstStats"></div>
-
-      <div class="section-title">Groupements <span id="brushMode" style="text-transform:none;letter-spacing:0"></span></div>
-      <div id="groupements" class="brush"></div>
-      <details id="gaDetails">
-        <summary class="section-title" style="font-size:.72rem">GA d'Action Populaire <span id="gaCount" style="text-transform:none;letter-spacing:0"></span></summary>
-        <div id="gaList"></div>
+      <details class="fold" id="foldRep">
+        <summary class="section-title">Répartition</summary>
+        <div class="fold-body" id="stats"></div>
       </details>
 
-      <div class="section-title">Répartition</div>
-      <div id="stats"></div>
+      <details class="fold" id="foldAgenda">
+        <summary class="section-title">Agenda des actions</summary>
+        <div class="fold-body">
+          <div id="agenda"></div>
+          <button class="ghost" id="addAction">+ Ajouter une action</button>
+        </div>
+      </details>
 
-      <div class="section-title">Agenda des actions</div>
-      <div id="agenda"></div>
-      <button class="ghost" id="addAction">+ Ajouter une action</button>
-
-      <div class="section-title">Sauvegarde</div>
-      <div class="row">
-        <button class="ghost" id="share">Partager par lien</button>
-        <button class="ghost" id="export">Exporter (JSON)</button>
-        <button class="ghost" id="import">Importer</button>
-        <button class="ghost" id="reset">Tout effacer</button>
-      </div>
+      <details class="fold" id="foldSave">
+        <summary class="section-title">Sauvegarde</summary>
+        <div class="fold-body">
+          <div class="row">
+            <button class="ghost" id="share">Partager par lien</button>
+            <button class="ghost" id="export">Exporter (JSON)</button>
+            <button class="ghost" id="import">Importer</button>
+            <button class="ghost" id="reset">Tout effacer</button>
+          </div>
+        </div>
+      </details>
       <input id="fileInput" type="file" accept=".json" style="display:none">
     </div>
   </div>
