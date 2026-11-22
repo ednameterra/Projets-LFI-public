@@ -15,7 +15,7 @@
   #app { display: flex; height: 100vh; }
 
   #sidebar {
-    width: 340px; flex-shrink: 0;
+    width: 360px; flex-shrink: 0;
     background: #4C0297; color: #FFFCF4;
     display: flex; flex-direction: column;
   }
@@ -60,7 +60,7 @@
   .brush-item:hover { border-color: #FFFCF4; }
   .brush-item.active { border-color: currentColor; background: #6d1cae; }
   .brush-item .swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; cursor: pointer; }
-  .brush-item .gname { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .brush-item .gname { flex: 1 1 auto; min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; white-space: normal; overflow-wrap: break-word; line-height: 1.25; }
   .brush-item .stats { margin-left: auto; font-size: 0.7rem; color: #d9c7f2; text-align: right; line-height: 1.3; flex-shrink: 0; }
   .brush-item .del {
     border: none; background: none; color: #c9a8ee; cursor: pointer;
