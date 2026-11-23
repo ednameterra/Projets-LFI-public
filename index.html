@@ -357,6 +357,7 @@
       <details class="fold" id="foldAgenda">
         <summary class="section-title">Agenda des actions</summary>
         <div class="fold-body">
+          <button class="ghost" id="pinsToggle" style="margin-bottom:6px;width:100%"></button>
           <div id="agenda"></div>
           <button class="ghost" id="addAction">+ Ajouter une action</button>
         </div>
@@ -1373,6 +1374,58 @@ function loadActions() {
       .map(x => ({ id: x.id, titre: x.titre, date: x.date, heure: x.heure || "", lieu: x.lieu || "", gid: x.gid || null, lat: x.lat ?? null, lng: x.lng ?? null }));
   } catch {}
 }
+// === Épingles des actions à venir sur la carte ===
+const PINS_KEY = STORAGE_KEY + "-pins";
+const pinsLayer = (typeof L !== "undefined" && typeof L.layerGroup === "function") ? L.layerGroup().addTo(map) : null;
+let pinsOn = true;
+try { pinsOn = localStorage.getItem(PINS_KEY) !== "0"; } catch {}
+function renderActionPins() {
+  if (!pinsLayer) return;
+  pinsLayer.clearLayers();
+  if (!pinsOn) return;
+  const today = todayStr();
+  actions.filter(a => a.lat != null && a.lng != null && a.date >= today).forEach(a => {
+    const g = groupements.find(g => g.id === a.gid);
+    const m = L.circleMarker([a.lat, a.lng], { radius: 7, color: "#FFFFFF", weight: 2, fillColor: "#4C0297", fillOpacity: .95 })
+      .bindTooltip("<b>" + escapeHtml(a.titre) + "</b><br>" + escapeHtml(fmtDate(a.date)) + (a.heure ? " · " + escapeHtml(a.heure) : "") + (a.lieu ? "<br>" + escapeHtml(a.lieu) : "") + (g ? "<br>" + escapeHtml(g.nom) : ""), { direction: "top", offset: [0, -6] });
+    m.on("click", () => { map.setView([a.lat, a.lng], 16); m.openTooltip(); });
+    pinsLayer.addLayer(m);
+  });
+}
+function setPins(on) {
+  pinsOn = !!on;
+  try { localStorage.setItem(PINS_KEY, pinsOn ? "1" : "0"); } catch {}
+  const b = document.getElementById("pinsToggle");
+  if (b) b.textContent = "📍 Épingles des actions : " + (pinsOn ? "ON" : "OFF");
+  renderActionPins();
+}
+let geocodeBusy = false;
+function geocodeMissingActions() {
+  if (geocodeBusy) return;
+  const need = actions.filter(a => a.lat == null && a.lieu);
+  if (!need.length) return;
+  let idx = 0, done = 0;
+  const step = () => {
+    if (idx >= need.length) {
+      if (done) { saveActions(); renderAgenda(); renderGroupements(); renderActionPins(); showToast("Positions de " + done + " action(s) complétées automatiquement."); }
+      return;
+    }
+    const a = need[idx++];
+    fetch("https://api-adresse.data.gouv.fr/search/?q=" + encodeURIComponent(a.lieu) + "&lat=43.05&lon=2.2&limit=1")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const f = d && d.features && d.features[0];
+        if (f && f.geometry && f.geometry.coordinates) {
+          a.lng = Math.round(f.geometry.coordinates[0] * 1e5) / 1e5;
+          a.lat = Math.round(f.geometry.coordinates[1] * 1e5) / 1e5;
+          done++;
+        }
+      })
+      .catch(() => {})
+      .then(() => setTimeout(step, 1200));
+  };
+  step();
+}
 function todayStr() {
   const d = new Date();
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -1429,6 +1482,7 @@ function renderAgenda() {
       }
     };
   });
+  renderActionPins();
 }
 let editingAction = null;
 let agMapObj = null, agMarker = null, agPos = null, locMarker = null;
@@ -1516,6 +1570,9 @@ document.getElementById("helpClose").onclick = () => {
 
 load();
 loadActions();
+setPins(pinsOn);
+document.getElementById("pinsToggle").onclick = () => setPins(!pinsOn);
+geocodeMissingActions();
 dedupeGAAP();
 mergeGAAP();
 save();
@@ -1603,6 +1660,7 @@ save();
       save();
       try { history.replaceState(null, "", location.pathname + location.search); } catch {}
       renderAgenda();
+      geocodeMissingActions();
       setTimeout(() => showToast(addC + addG + addA + supG + statut || conflits ? "Fusion effectuée : +" + addC + " commune(s), +" + addG + " groupement(s), +" + addA + " action(s)" + (supG ? ", " + supG + " groupement(s) supprimé(s)" : "") + (statut ? ", " + statut + " désactivation(s)" : "") + (conflits ? ", " + conflits + " conflit(s) ignoré(s) (commune déjà prise chez vous)" : "") + "." : "Rien de nouveau : ce lien est déjà intégré à votre version."), 400);
     }
   } catch { showToast("Lien de partage illisible ou corrompu — rien n'a été modifié."); }
