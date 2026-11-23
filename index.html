@@ -1384,12 +1384,28 @@ function renderActionPins() {
   pinsLayer.clearLayers();
   if (!pinsOn) return;
   const today = todayStr();
-  actions.filter(a => a.lat != null && a.lng != null && a.date >= today).forEach(a => {
-    const g = groupements.find(g => g.id === a.gid);
-    const m = L.circleMarker([a.lat, a.lng], { radius: 7, color: "#FFFFFF", weight: 2, fillColor: "#4C0297", fillOpacity: .95 })
-      .bindTooltip("<b>" + escapeHtml(a.titre) + "</b><br>" + escapeHtml(fmtDate(a.date)) + (a.heure ? " · " + escapeHtml(a.heure) : "") + (a.lieu ? "<br>" + escapeHtml(a.lieu) : "") + (g ? "<br>" + escapeHtml(g.nom) : ""), { direction: "top", offset: [0, -6] });
-    m.on("click", () => { map.setView([a.lat, a.lng], 16); m.openTooltip(); });
-    pinsLayer.addLayer(m);
+  const list = actions.filter(a => a.lat != null && a.lng != null && a.date >= today);
+  // Regroupe les actions au même endroit (arrondi ~10 m) pour les écarter en cercle
+  const groups = {};
+  list.forEach(a => {
+    const key = a.lat.toFixed(4) + "/" + a.lng.toFixed(4);
+    (groups[key] = groups[key] || []).push(a);
+  });
+  Object.values(groups).forEach(gs => {
+    gs.forEach((a, i) => {
+      const n = gs.length;
+      let lat = a.lat, lng = a.lng;
+      if (n > 1) { // répartir en cercle autour du vrai point (~45 m entre pins)
+        const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
+        lat += 0.0004 * Math.cos(ang);
+        lng += 0.0004 / Math.cos(a.lat * Math.PI / 180) * Math.sin(ang);
+      }
+      const g = groupements.find(g => g.id === a.gid);
+      const m = L.circleMarker([lat, lng], { radius: 7, color: "#FFFFFF", weight: 2, fillColor: "#4C0297", fillOpacity: .95 })
+        .bindTooltip((n > 1 ? "<b>" + (i + 1) + "/" + n + "</b> — " : "") + "<b>" + escapeHtml(a.titre) + "</b><br>" + escapeHtml(fmtDate(a.date)) + (a.heure ? " · " + escapeHtml(a.heure) : "") + (a.lieu ? "<br>" + escapeHtml(a.lieu) : "") + (g ? "<br>" + escapeHtml(g.nom) : "") + (n > 1 ? "<br><i>Position légèrement décalée pour séparer les épingles.</i>" : ""), { direction: "top", offset: [0, -6] });
+      m.on("click", () => { map.setView([lat, lng], 16); m.openTooltip(); });
+      pinsLayer.addLayer(m);
+    });
   });
 }
 function setPins(on) {
