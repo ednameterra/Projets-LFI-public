@@ -699,7 +699,7 @@ function updateLegend() {
   if (!lg) return;
   if (!abstentionMode && !votesMode) { lg.style.display = "none"; return; }
   lg.style.display = "block";
-  const tourTxt = " (" + (abstRound.startsWith("t1") ? "1ᵉʳ" : "2ᵉ") + " tour)";
+  const tourTxt = " (" + ((votesMode ? votesRound : abstRound).startsWith("t1") ? "1ᵉʳ" : "2ᵉ") + " tour)";
   if (votesMode) {
     document.getElementById("abstLgTitle").textContent = "Score LFI · législatives " + votesYear() + tourTxt;
     document.getElementById("abstLgSrc").textContent =
@@ -716,9 +716,15 @@ function setAbstRound(r) {
   abstRound = r;
   document.querySelectorAll("#abstRounds .ghost").forEach(b => b.classList.toggle("abst-active", b.dataset.round === r));
   updateLegend();
-  if ((abstentionMode || votesMode) && geoLayer) geoLayer.eachLayer(l => l.setStyle(currentStyle(l.feature.properties.code)));
+  if (abstentionMode && geoLayer) geoLayer.eachLayer(l => l.setStyle(currentStyle(l.feature.properties.code)));
 }
-document.querySelectorAll("#abstRounds .ghost").forEach(b => b.onclick = () => setAbstRound(b.dataset.round));
+function setVotesRound(r) {
+  votesRound = r;
+  document.querySelectorAll("#abstRounds .ghost").forEach(b => b.classList.toggle("abst-active", b.dataset.round === r));
+  updateLegend();
+  if (votesMode && geoLayer) geoLayer.eachLayer(l => l.setStyle(currentStyle(l.feature.properties.code)));
+}
+document.querySelectorAll("#abstRounds .ghost").forEach(b => b.onclick = () => (votesMode ? setVotesRound : setAbstRound)(b.dataset.round));
 setAbstRound("t2-24");
 
 function onCommuneClick(code) {
