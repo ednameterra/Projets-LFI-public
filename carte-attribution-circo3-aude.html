@@ -709,6 +709,17 @@ function votesLine(code) {
 function setVotesParty(p) {
   votesParty = p;
   document.getElementById("votesParty").value = p;
+  // parti absent au tour affiche -> bascule auto sur le dernier tour ou il a des donnees
+  if (p !== "reserves") {
+    const d = (VOTE_VOIX[p] || {})[votesRound];
+    if (!d || !Object.keys(d).length) {
+      for (let i = VOTE_TOURS.length - 1; i >= 0; i--) {
+        const dd = (VOTE_VOIX[p] || {})[VOTE_TOURS[i]];
+        if (dd && Object.keys(dd).length) { votesRound = VOTE_TOURS[i]; break; }
+      }
+      document.querySelectorAll("#abstRounds .ghost").forEach(b => b.classList.toggle("abst-active", b.dataset.round === votesRound));
+    }
+  }
   if (votesMode) {
     updateLegend();
     if (geoLayer) geoLayer.eachLayer(l => l.setStyle(currentStyle(l.feature.properties.code)));
