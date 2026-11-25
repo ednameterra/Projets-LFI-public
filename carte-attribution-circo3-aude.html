@@ -569,7 +569,7 @@ function build(gj) {
       const code = f.properties.code;
       layers[code] = layer;
       layer.on("click", () => onCommuneClick(code));
-      layer.on("mouseover", () => { layer.setStyle({ ...currentStyle(code), weight: 0, dashArray: null }); clearHlRing(); drawHlRing([code]); showHover(code); });
+      layer.on("mouseover", () => { clearHlRing(); drawHlRing([code]); showHover(code); });
       layer.on("mouseout", () => { applyHighlight(); hideHover(); });
       if (PARTIELLES[code]) layer.bindTooltip("⚠ " + communeName(code) + " — partagée", { direction: "center", className: "partiel-tip" });
     }
@@ -1097,8 +1097,8 @@ function drawHlRing(codes) {
   const fc = { type: "FeatureCollection", features: chains.map(c => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: c } })) };
   if (map.createPane && !map.getPane("hlRing")) { map.createPane("hlRing"); map.getPane("hlRing").style.zIndex = 450; } // au-dessus des remplissages, sous les epingles/infobulles
   hlRing = L.featureGroup();
-  const halo = L.geoJSON(fc, { pane: "hlRing", interactive: false, style: () => ({ stroke: true, fill: false, color: "#212320", weight: 6, opacity: 0.9, lineCap: "round", lineJoin: "round" }) });
-  const noyau = L.geoJSON(fc, { pane: "hlRing", interactive: false, style: () => ({ stroke: true, fill: false, color: "#FFFCF4", weight: 3.4, opacity: 1, lineCap: "round", lineJoin: "round" }) });
+  const halo = L.geoJSON(fc, { pane: "hlRing", interactive: false, style: () => ({ stroke: true, fill: false, color: "#212320", weight: 5, opacity: 0.9, lineCap: "round", lineJoin: "round" }) });
+  const noyau = L.geoJSON(fc, { pane: "hlRing", interactive: false, style: () => ({ stroke: true, fill: false, color: "#FFFCF4", weight: 2.5, opacity: 1, lineCap: "round", lineJoin: "round" }) });
   hlRing.addLayer(halo).addLayer(noyau);
   hlRing.addTo(map);
   // garanti : le noyau cremme au-dessus du halo, quel que soit le plan SVG
@@ -1112,7 +1112,7 @@ function applyHighlight() {
     const code = l.feature.properties.code;
     const base = currentStyle(code);
     const dans = target && target.communes.includes(code);
-    const hl = dans ? { ...base, weight: 0, dashArray: null } : base; // contour porté par le liséré double
+    const hl = { ...base }; // les fines frontieres internes restent visibles sous le liseré extérieur
     if (dans && !abstentionMode && !votesMode) hl.fillOpacity = Math.min(0.95, base.fillOpacity + 0.2);
     l.setStyle(hl);
     if (dans && l.bringToFront) l.bringToFront();
