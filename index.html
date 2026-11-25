@@ -547,16 +547,34 @@ fetch("https://geo.api.gouv.fr/communes?codeDepartement=11&format=geojson&geomet
   });
 
 const hoverInfo = document.getElementById("hoverInfo");
+function inscritsOf(code, tour) { // inscrits du tour : ABST_COUNTS[tour][code] = [inscrits, abstentions]
+  const c = (ABST_COUNTS[tour] || {})[code.split("#")[0]];
+  return c ? c[0] : null;
+}
+function inscritsSum(codes, tour) { // somme des inscrits (secteurs de Limoux comptes une seule fois)
+  const seen = new Set(); let s = 0;
+  codes.forEach(c => {
+    const b = c.split("#")[0];
+    if (seen.has(b)) return;
+    seen.add(b);
+    const v = inscritsOf(c, tour);
+    if (v) s += v;
+  });
+  return s;
+}
 function showHover(code) {
   const g = actifs().find(g => g.communes.includes(code));
   const pop = populationOf(code);
   const popTxt = pop ? " · " + pop.toLocaleString("fr-FR") + " hab" : "";
+  const ins = inscritsOf(code, "t2-24");
+  const insDiv = (!abstentionMode && !votesMode && ins) ? `<div class="hi-sub">Inscrit·es (lég. 2024) : <b>${ins.toLocaleString("fr-FR")}</b></div>` : "";
   hoverInfo.innerHTML =
     `<div class="hi-name">${escapeHtml(communeName(code))}</div>` +
     (g
       ? `<div class="hi-sub"><span class="hi-dot" style="background:${g.color}"></span><span>${escapeHtml(g.nom)}${popTxt}</span></div>`
       : `<div class="hi-sub">Commune libre${popTxt}</div>`) +
-    (abstentionMode ? abstentionLine(code) : votesMode ? votesLine(code) : "");
+    (abstentionMode ? abstentionLine(code) : votesMode ? votesLine(code) : "") +
+    insDiv;
   hoverInfo.style.display = "block";
 }
 function hideHover() { hoverInfo.style.display = "none"; }
@@ -622,10 +640,13 @@ function abstColor(code) {
   return "#D1271C";
 }
 function abstentionLine(code) {
-  const v = abstData()[code.split("#")[0]];
+  const b = code.split("#")[0];
+  const v = abstData()[b];
+  const c = (ABST_COUNTS[abstRound] || {})[b];
+  const det = c ? ` — ${c[1].toLocaleString("fr-FR")} abstentions sur ${c[0].toLocaleString("fr-FR")} inscrit·es` : "";
   return v == null
     ? `<div class="hi-sub">Abstention ${abstLabel()} : données indisponibles</div>`
-    : `<div class="hi-sub">Abstention ${abstLabel()} : <b>${v.toLocaleString("fr-FR")} %</b></div>`;
+    : `<div class="hi-sub">Abstention ${abstLabel()} : <b>${v.toLocaleString("fr-FR")} %</b>${det}</div>`;
 }
 function currentStyle(code) {
   if (abstentionMode || votesMode) {
@@ -703,8 +724,10 @@ function votesLine(code) {
   const p = votesPct(code), v = votesVoix(code);
   if (p == null) return `<div class="hi-sub">${escapeHtml(cand)} · éliminé au 1er tour (${votesYear()})</div>`;
   const e = VOTE_EXPRS[votesRound][code.split("#")[0]];
+  const ic = (ABST_COUNTS[votesRound] || {})[code.split("#")[0]];
+  const insTxt = ic && ic[0] ? ` · ${ic[0].toLocaleString("fr-FR")} inscrit·es` : "";
   return `<div class="hi-sub"><b>${fmtPct1(p)}</b> — ${escapeHtml(meta.nom)} · ${escapeHtml(cand)} · ${votesLabel()}</div>` +
-    `<div class="hi-sub">${v.toLocaleString("fr-FR")} voix / ${e.toLocaleString("fr-FR")} exprimés</div>`;
+    `<div class="hi-sub">${v.toLocaleString("fr-FR")} voix / ${e.toLocaleString("fr-FR")} exprimés${insTxt}</div>`;
 }
 function setVotesParty(p) {
   votesParty = p;
@@ -1135,6 +1158,7 @@ function renderGroupements() {
     div.className = "brush-item" + (activeGroup === g.id ? " active" : "") + (g.actif === false ? " off" : "");
     div.style.color = g.color;
     const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
+    const ins = inscritsSum(g.communes, "t2-24");
     const nUp = actions.filter(a => a.gid === g.id && a.date >= todayStr()).length;
     div.innerHTML = `
       <div class="bi-main">
@@ -1142,7 +1166,7 @@ function renderGroupements() {
         <span class="gname" style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
       </div>
       <div class="bi-sub">
-        <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.${nUp ? `<br>🗓 ${nUp}` : ""}</span>
+        <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.<br>${fmt(ins)} inscrit·es${nUp ? `<br>🗓 ${nUp}` : ""}</span>
         <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
         <button class="pwr" title="${g.actif === false ? "Réactiver ce groupement" : "Désactiver (libère son territoire, sans supprimer)"}">${g.actif === false ? "▶" : "⏸"}</button>
         <button class="del rm" title="Supprimer le groupement">✕</button>
@@ -1238,9 +1262,12 @@ function renderStats() {
   const popTotal = totalPop;
   const assigned = actifs().reduce((s, g) => s + g.communes.length, 0);
   const popAssigned = actifs().reduce((s, g) => s + g.communes.reduce((x, c) => x + (populationOf(c) || 0), 0), 0);
+  const insTotal = inscritsSum([...CIRCO_CODES], "t2-24");
+  const insAssigned = actifs().reduce((s, g) => s + inscritsSum(g.communes, "t2-24"), 0);
   document.getElementById("stats").innerHTML =
     `<b>${assigned}</b> / ${total} communes attribuées (${Math.round(100 * assigned / total)} %)<br>` +
-    `<b>${fmt(popAssigned)}</b> / ${fmt(popTotal)} habitants couverts` +
+    `<b>${fmt(popAssigned)}</b> / ${fmt(popTotal)} habitants couverts<br>` +
+    `<b>${fmt(insAssigned)}</b> / ${fmt(insTotal)} inscrit·es couverts (lég. 2024)` +
     (assigned < total ? `<br><span style="color:#f5a623">${total - assigned} commune(s) encore libre(s)</span>` : `<br><span style="color:#18b26b">✓ Territoire entièrement couvert</span>`);
 }
 
