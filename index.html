@@ -569,7 +569,7 @@ function build(gj) {
       const code = f.properties.code;
       layers[code] = layer;
       layer.on("click", () => onCommuneClick(code));
-      layer.on("mouseover", () => { layer.setStyle({ weight: 2.5, color: hlCol(currentStyle(code).fillColor) }); showHover(code); });
+      layer.on("mouseover", () => { layer.setStyle({ ...currentStyle(code), weight: 0, dashArray: null }); clearHlRing(); drawHlRing([code]); showHover(code); });
       layer.on("mouseout", () => { applyHighlight(); hideHover(); });
       if (PARTIELLES[code]) layer.bindTooltip("⚠ " + communeName(code) + " — partagée", { direction: "center", className: "partiel-tip" });
     }
@@ -1037,6 +1037,24 @@ function lumCol(hex) {  // luminance approximative d'une couleur #RRGGBB
 function hlCol(fillHex) {  // contour lisible sur tout fond : charbon sur clair, creme sur fonce
   return lumCol(fillHex) > 0.5 ? "#212320" : "#FFFCF4";
 }
+// Liséré double uniforme pour la surbrillance : halo charbon + noyau crème,
+// visible sur tout fond (violet foncé, lavande palè, crème, jaune...) — quel que soit le mode.
+let hlRing = null;
+function clearHlRing() {
+  if (hlRing) { try { map.removeLayer(hlRing); } catch {} hlRing = null; }
+}
+function drawHlRing(codes) {
+  clearHlRing();
+  if (!codes || !codes.length || !map || typeof L === "undefined") return;
+  const feats = codes.map(c => layers[c] && layers[c].feature).filter(Boolean);
+  if (!feats.length) return;
+  const fc = { type: "FeatureCollection", features: feats };
+  hlRing = L.featureGroup();
+  const halo = L.geoJSON(fc, { interactive: false, style: () => ({ stroke: true, fill: false, color: "#212320", weight: 6.5, opacity: 0.95 }) });
+  const noyau = L.geoJSON(fc, { interactive: false, style: f => ({ stroke: true, fill: false, color: "#FFFCF4", weight: 3, opacity: 1, dashArray: PARTIELLES[f.properties.code] ? "5 4" : null }) });
+  hlRing.addLayer(halo).addLayer(noyau);
+  hlRing.addTo(map);
+}
 function applyHighlight() {
   if (!geoLayer) return;
   const target = hoverGA ? (hoverGA === "none" ? null : groupements.find(g => g.id === hoverGA))
@@ -1044,15 +1062,13 @@ function applyHighlight() {
   geoLayer.eachLayer(l => {
     const code = l.feature.properties.code;
     const base = currentStyle(code);
-    if (target && target.communes.includes(code)) {
-      const hl = { ...base, weight: 3, color: hlCol(base.fillColor) };
-      if (!abstentionMode && !votesMode) hl.fillOpacity = Math.min(0.95, base.fillOpacity + 0.2);
-      l.setStyle(hl);
-      if (l.bringToFront) l.bringToFront();
-    } else {
-      l.setStyle(base);
-    }
+    const dans = target && target.communes.includes(code);
+    const hl = dans ? { ...base, weight: 0, dashArray: null } : base; // contour porté par le liséré double
+    if (dans && !abstentionMode && !votesMode) hl.fillOpacity = Math.min(0.95, base.fillOpacity + 0.2);
+    l.setStyle(hl);
+    if (dans && l.bringToFront) l.bringToFront();
   });
+  drawHlRing(target ? target.communes : null);
 }
 
 function renderGroupements() {
