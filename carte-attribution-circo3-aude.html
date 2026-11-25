@@ -1046,12 +1046,58 @@ function clearHlRing() {
 function drawHlRing(codes) {
   clearHlRing();
   if (!codes || !codes.length || !map || typeof L === "undefined") return;
-  const feats = codes.map(c => layers[c] && layers[c].feature).filter(Boolean);
-  if (!feats.length) return;
-  const fc = { type: "FeatureCollection", features: feats };
+  // Dissolve : on ne garde que les segments de contour NON partages entre deux
+  // communes du territoire -> le liser suivre le contour exterieur de l'ensemble,
+  // sans doubler les frontieres internes (plus de barres noires entre communes).
+  const kk = p => p[0].toFixed(6) + "," + p[1].toFixed(6);
+  const seg = new Map();
+  const addRing = ring => {
+    for (let i = 0; i + 1 < ring.length; i++) {
+      const a = kk(ring[i]), b = kk(ring[i + 1]);
+      const key = a < b ? a + "|" + b : b + "|" + a;
+      if (seg.has(key)) seg.delete(key); else seg.set(key, [ring[i], ring[i + 1]]);
+    }
+  };
+  const addGeom = g => {
+    if (!g) return;
+    if (g.type === "Polygon") g.coordinates.forEach(addRing);
+    else if (g.type === "MultiPolygon") g.coordinates.forEach(p => p.forEach(addRing));
+  };
+  codes.forEach(c => { const l = layers[c]; if (l && l.feature) addGeom(l.feature.geometry); });
+  // chainage des segments restants en polylignes continues (peu de traces SVG)
+  const adj = new Map();
+  seg.forEach(s => {
+    const ka = kk(s[0]), kb = kk(s[1]);
+    if (!adj.get(ka)) adj.set(ka, []); adj.get(ka).push(s);
+    if (!adj.get(kb)) adj.set(kb, []); adj.get(kb).push(s);
+  });
+  const used = new Set();
+  const chains = [];
+  const seeds = [];
+  adj.forEach((ss, k) => { if (ss.length === 1) seeds.push(k); });
+  if (!seeds.length) adj.forEach((ss, k) => seeds.push(k));
+  seeds.forEach(k0 => {
+    (adj.get(k0) || []).forEach(s0 => {
+      if (used.has(s0)) return;
+      used.add(s0);
+      const chain = [s0[0], s0[1]];
+      let end = kk(s0[1]);
+      for (;;) {
+        const nxt = (adj.get(end) || []).find(s => !used.has(s));
+        if (!nxt) break;
+        used.add(nxt);
+        const pt = kk(nxt[0]) === end ? nxt[1] : nxt[0];
+        chain.push(pt);
+        end = kk(pt);
+      }
+      if (chain.length >= 2) chains.push(chain);
+    });
+  });
+  if (!chains.length) return;
+  const fc = { type: "FeatureCollection", features: chains.map(c => ({ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: c } })) };
   hlRing = L.featureGroup();
-  const halo = L.geoJSON(fc, { interactive: false, style: () => ({ stroke: true, fill: false, color: "#212320", weight: 6.5, opacity: 0.95 }) });
-  const noyau = L.geoJSON(fc, { interactive: false, style: f => ({ stroke: true, fill: false, color: "#FFFCF4", weight: 3, opacity: 1, dashArray: PARTIELLES[f.properties.code] ? "5 4" : null }) });
+  const halo = L.geoJSON(fc, { interactive: false, style: () => ({ stroke: true, fill: false, color: "#212320", weight: 6.5, opacity: 0.95, lineCap: "round", lineJoin: "round" }) });
+  const noyau = L.geoJSON(fc, { interactive: false, style: () => ({ stroke: true, fill: false, color: "#FFFCF4", weight: 3, opacity: 1, lineCap: "round", lineJoin: "round" }) });
   hlRing.addLayer(halo).addLayer(noyau);
   hlRing.addTo(map);
 }
