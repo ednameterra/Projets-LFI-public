@@ -13,6 +13,7 @@ Fonctionne sur navigateur (ordinateur et téléphone), sans installation ni comp
 ### 1. L'adresse officielle
 - Une seule adresse (ci-dessus) — mettez-la en favori.
 - Ne partagez jamais l'adresse copiée depuis la barre d'adresse après avoir ouvert un lien reçu : utilisez toujours le bouton **« Partager par lien »**.
+- Les liens de partage sont **compressés** (sans aucune perte de données) : environ deux fois plus courts qu'avant. Les anciens liens restent compatibles.
 
 ### 2. Où sont vos données
 - Vos attributions et votre agenda sont enregistrés **dans votre navigateur, sur votre appareil**. Recharger la page ou fermer l'onglet ne perd rien ; changer d'appareil, de navigateur ou d'ordinateur = copie vide.

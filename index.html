@@ -1577,6 +1577,21 @@ async function inflateStr(bytes) {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new TextDecoder().decode(await new Response(stream).arrayBuffer());
 }
+async function deflateRaw(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function inflateRawBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function decodeStateB(bytes) {
+  if (bytes.length && bytes[0] === 5) {
+    if (typeof DecompressionStream === "undefined") return null;
+    return decodeStateBinary(await inflateRawBytes(bytes.slice(1)));
+  }
+  return decodeStateBinary(bytes);
+}
 function decodeState(txt) {
   return txt.split(";").filter(Boolean).map(part => {
     const ci = part.lastIndexOf(":");
@@ -1599,11 +1614,20 @@ function decodeState(txt) {
   }).filter(Boolean);
 }
 
-document.getElementById("share").onclick = () => {
+document.getElementById("share").onclick = async () => {
   if (!groupements.length && !actions.length) { showToast("Rien à partager : attribuez des communes ou ajoutez des actions."); return; }
   const u = new URL(".", location.href);
   const base = (location.origin && location.origin !== "null" ? u.origin + u.pathname : "");
-  document.getElementById("shareUrl").value = base + "#b=" + b64uFromBytes(encodeStateBinary());
+  const v4 = encodeStateBinary();
+  let best = b64uFromBytes(v4);
+  if (typeof CompressionStream !== "undefined") {
+    try {
+      const comp = await deflateRaw(v4);
+      const s5 = b64uFromBytes(new Uint8Array([5, ...comp]));
+      if (s5.length < best.length) best = s5; // jamais plus long que v4
+    } catch {}
+  }
+  document.getElementById("shareUrl").value = base + "#b=" + best;
   document.getElementById("shareOverlay").style.display = "flex";
 };
 document.getElementById("shareClose").onclick = () => document.getElementById("shareOverlay").style.display = "none";
@@ -1853,7 +1877,7 @@ save();
   const md = location.hash.match(/^#d=(.+)$/);
   if (!mb && !mc && !mz && !md) return;
   try {
-    const dec = mb ? decodeStateBinary(b64uToBytes(mb[1])) : null;
+    const dec = mb ? await decodeStateB(b64uToBytes(mb[1])) : null;
     const data = mb ? dec.groups
       : mc ? decodeState(await inflateStr(b64uToBytes(mc[1])))
       : mz ? decodeState(new TextDecoder().decode(b64uToBytes(mz[1])))
