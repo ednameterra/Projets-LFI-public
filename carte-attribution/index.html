@@ -1459,7 +1459,7 @@ const GA_AP = [
   { n: "Limoux Causes Communes", c: "11206#0" },
   { n: "Groupe d'action Limoux et environs", c: "11206#1" },
   { n: "Résistance - Limoux", c: "11206#2" },
-  { n: "Insoumis chauriens", c: "11276" },
+  { n: "Insoumis chauriens", c: "11076" },
   { n: "Groupe d'action de La Piège", c: "11291" },
   { n: "Groupe action Saint Pierre Lagrasse", c: "11363" },
   { n: "Groupe d'Action des Corbières occidentales", c: "11065" },
@@ -1487,6 +1487,17 @@ function normGAName(s) {
     .replace(/[^a-z0-9]+/g, " ").trim()
     .replace(/^(groupe d action populaire|groupe d action|groupe action|ga|groupe)( de la| du| des| de| d)? /, "")
     .replace(/^(les|la|le|l|du|de la|des|de|d) /, "");
+}
+function migrateDomiciliations() {
+  // Correction 11/2025 : le GA "Insoumis chauriens" est domicilie a Castelnaudary (11076), pas a Paziols (11276).
+  // Reapplique dans l etat sauvegarde du navigateur (la graine GA_AP ne corrige que les demarrages a vide).
+  const cible = normGAName("Insoumis chauriens");
+  const prise = groupements.some(g => normGAName(g.nom) !== cible && g.communes.includes("11076"));
+  groupements.forEach(g => {
+    if (normGAName(g.nom) !== cible) return;
+    const i = g.communes.indexOf("11276");
+    if (i !== -1 && !g.communes.includes("11076") && !prise) g.communes[i] = "11076";
+  });
 }
 function dedupeGAAP() {
   const official = new Map(GA_AP.map(g => [normGAName(g.n), g.n]));
@@ -1960,6 +1971,7 @@ setPins(pinsOn);
 document.getElementById("pinsToggle").onclick = () => setPins(!pinsOn);
 geocodeMissingActions();
 dedupeGAAP();
+migrateDomiciliations();
 mergeGAAP();
 save();
 (async function loadFromHash() {
