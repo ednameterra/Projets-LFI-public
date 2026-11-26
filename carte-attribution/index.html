@@ -662,7 +662,7 @@ function currentStyle(code) {
 }
 function setAbstentionMode(on) {
   abstentionMode = on;
-  if (on && votesMode) { votesMode = false; document.getElementById("votesToggle").classList.remove("abst-active"); }
+  if (on && votesMode) { votesMode = false; document.getElementById("votesToggle").classList.remove("abst-active"); document.getElementById("votesParty").style.display = "none"; }
   document.getElementById("abstToggle").classList.toggle("abst-active", on);
   document.getElementById("abstRounds").style.display = on ? "flex" : "none";
   updateLegend();
@@ -2056,7 +2056,7 @@ renderGroupements();
 renderGAList();
 renderStats();
 renderAbstStats();
-console.log("[carte circo 3 Aude] version liseré-dissous + liens v5 \u2014 si ce message s'affiche, le cache est \u00e0 jour.");
+console.log("[carte circo 3 Aude] menu partis masque en mode abstention + inscrits par commune \u2014 si ce message s'affiche, le cache est \u00e0 jour.");
 </script>
 </body>
 </html>
