@@ -12,9 +12,6 @@ LFI de la 3ᵉ circonscription de l'Aude, avec agenda des actions.
 
 > Le dépôt a été renommé (`carte-circo3-aude` → `Projets-LFI-public`) :
 > mettez à jour vos favoris avec l'adresse officielle ci-dessus.
-> La page `carte-attribution-circo3-aude.html` reste en place uniquement
-> comme redirection pour les anciens liens — elle sera retirée une fois
-> que tout le monde a la nouvelle adresse.
 
 Fonctionne sur navigateur (ordinateur et téléphone), sans installation ni compte. Page unique autonome : Leaflet, contours communaux via geo.api.gouv.fr, fond de carte OpenStreetMap.
 
