@@ -1160,13 +1160,17 @@ function renderGroupements() {
     const pop = g.communes.reduce((s, c) => s + (populationOf(c) || 0), 0);
     const ins = inscritsSum(g.communes, "t2-24");
     const nUp = actions.filter(a => a.gid === g.id && a.date >= todayStr()).length;
+    const habAct = (typeof g.ma === "number" && g.ma > 0) ? Math.round(pop / g.ma) : null;
+    const maTxt = typeof g.ma === "number"
+      ? `${fmt(g.ma)} actif·es${habAct != null ? `<br>${fmt(habAct)} hab./actif` : ""}`
+      : "actif·es ?";
     div.innerHTML = `
       <div class="bi-main">
         <span class="swatch" style="background:${g.color}" title="Cliquer pour changer la couleur"></span>
         <span class="gname" style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
       </div>
       <div class="bi-sub">
-        <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.<br>${fmt(ins)} inscrit·es${nUp ? `<br>🗓 ${nUp}` : ""}</span>
+        <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.<br>${fmt(ins)} inscrit·es<br><span class="maEdit" style="cursor:pointer;text-decoration:underline dotted" title="Clic pour modifier le nombre de membres actifs">${maTxt}</span>${nUp ? `<br>🗓 ${nUp}` : ""}</span>
         <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
         <button class="pwr" title="${g.actif === false ? "Réactiver ce groupement" : "Désactiver (libère son territoire, sans supprimer)"}">${g.actif === false ? "▶" : "⏸"}</button>
         <button class="del rm" title="Supprimer le groupement">✕</button>
@@ -1185,6 +1189,15 @@ function renderGroupements() {
       if (!free.length) { showToast("Toutes les couleurs FI sont déjà utilisées."); return; }
       const start = PALETTE.indexOf(g.color);
       g.color = free.find(c => PALETTE.indexOf(c) > start) || free[0];
+      refresh();
+    };
+    div.querySelector(".maEdit").onclick = (e) => {
+      e.stopPropagation();
+      const v = prompt(`Nombre de membres actifs pour « ${g.nom} » (source : actionpopulaire.fr) :`, typeof g.ma === "number" ? g.ma : "");
+      if (v === null) return;
+      const nb = parseInt(v, 10);
+      if (isNaN(nb) || nb < 0) { showToast("Entrez un nombre entier positif (0 possible)."); return; }
+      g.ma = nb;
       refresh();
     };
     div.querySelector(".tgl").onclick = (e) => {
@@ -1264,10 +1277,13 @@ function renderStats() {
   const popAssigned = actifs().reduce((s, g) => s + g.communes.reduce((x, c) => x + (populationOf(c) || 0), 0), 0);
   const insTotal = inscritsSum([...CIRCO_CODES], "t2-24");
   const insAssigned = actifs().reduce((s, g) => s + inscritsSum(g.communes, "t2-24"), 0);
+  const maTotal = actifs().reduce((s, g) => s + (typeof g.ma === "number" && g.ma > 0 ? g.ma : 0), 0);
+  const maRatio = maTotal > 0 ? Math.round(popAssigned / maTotal) : null;
   document.getElementById("stats").innerHTML =
     `<b>${assigned}</b> / ${total} communes attribuées (${Math.round(100 * assigned / total)} %)<br>` +
     `<b>${fmt(popAssigned)}</b> / ${fmt(popTotal)} habitants couverts<br>` +
     `<b>${fmt(insAssigned)}</b> / ${fmt(insTotal)} inscrit·es couverts (lég. 2024)` +
+    (maRatio != null ? `<br><b>${fmt(maTotal)}</b> membres actifs — ${fmt(maRatio)} hab. par membre actif` : "") +
     (assigned < total ? `<br><span style="color:#f5a623">${total - assigned} commune(s) encore libre(s)</span>` : `<br><span style="color:#18b26b">✓ Territoire entièrement couvert</span>`);
 }
 
@@ -1455,27 +1471,29 @@ function dedupeColors() {
   });
 }
 
+// ma = membres actifs, releves sur actionpopulaire.fr (11/2025)
 const GA_AP = [
-  { n: "Limoux Causes Communes", c: "11206#0" },
-  { n: "Groupe d'action Limoux et environs", c: "11206#1" },
-  { n: "Résistance - Limoux", c: "11206#2" },
-  { n: "Insoumis chauriens", c: "11076" },
-  { n: "Groupe d'action de La Piège", c: "11291" },
-  { n: "Groupe action Saint Pierre Lagrasse", c: "11363" },
-  { n: "Groupe d'Action des Corbières occidentales", c: "11065" },
-  { n: "Sougraigne", c: "11381" },
-  { n: "Groupe d'action populaire de Bram", c: "11049" },
-  { n: "Montolieu Insoumise", c: "11253" },
-  { n: "HVA (Haute Vallée Audoise)", c: "11103" },
-  { n: "GA Insoumis du Quercorb", c: "11091" }
+  { n: "Limoux Causes Communes", c: "11206#0", ma: 8 },
+  { n: "Groupe d'action Limoux et environs", c: "11206#1", ma: 2 },
+  { n: "Résistance - Limoux", c: "11206#2", ma: 22 },
+  { n: "Insoumis chauriens", c: "11076", ma: 16 },
+  { n: "Groupe d'action de La Piège", c: "11291", ma: 3 },
+  { n: "Groupe action Saint Pierre Lagrasse", c: "11363", ma: 4 },
+  { n: "Groupe d'Action des Corbières occidentales", c: "11065", ma: 4 },
+  { n: "Sougraigne", c: "11381", ma: 8 },
+  { n: "Groupe d'action populaire de Bram", c: "11049", ma: 15 },
+  { n: "Montolieu Insoumise", c: "11253", ma: 15 },
+  { n: "HVA (Haute Vallée Audoise)", c: "11103", ma: 21 },
+  { n: "GA Insoumis du Quercorb", c: "11091", ma: 8 }
 ];
 function mergeGAAP() {
   let added = 0, assigned = 0;
-  GA_AP.forEach(({ n, c }) => {
+  GA_AP.forEach(({ n, c, ma }) => {
     if (gaSuppr.some(s => normGAName(s) === normGAName(n))) return;
     if (groupements.some(g => normGAName(g.nom) === normGAName(n))) return;
     const color = pickColor();
     const g = { id: "g" + Date.now() + "-" + added, nom: n, color, communes: [] };
+    if (typeof ma === "number") g.ma = ma;
     groupements.push(g);
     added++;
     if (!groupements.some(x => x !== g && x.communes.includes(c))) { g.communes.push(c); assigned++; }
@@ -1497,6 +1515,15 @@ function migrateDomiciliations() {
     if (normGAName(g.nom) !== cible) return;
     const i = g.communes.indexOf("11276");
     if (i !== -1 && !g.communes.includes("11076") && !prise) g.communes[i] = "11076";
+  });
+}
+function migrateActifs() {
+  // Complete les membres actifs manquants des groupements officiels dans les
+  // etats sauvegardes anterieurs (une valeur saisie par l utilisateur est toujours respectee).
+  GA_AP.forEach(({ n, ma }) => {
+    if (typeof ma !== "number") return;
+    const g = groupements.find(x => normGAName(x.nom) === normGAName(n));
+    if (g && typeof g.ma !== "number") g.ma = ma;
   });
 }
 function dedupeGAAP() {
@@ -1972,6 +1999,7 @@ document.getElementById("pinsToggle").onclick = () => setPins(!pinsOn);
 geocodeMissingActions();
 dedupeGAAP();
 migrateDomiciliations();
+migrateActifs();
 mergeGAAP();
 save();
 (async function loadFromHash() {
@@ -2045,6 +2073,7 @@ save();
         });
       });
       dedupeGAAP();
+      migrateActifs();
       if (dec && Array.isArray(dec.actions)) {
         dec.actions.filter(a => a && a.titre && a.date).forEach(a => {
           const key = (a.titre + "|" + a.date + "|" + (a.heure || "") + "|" + (a.lieu || "")).toLowerCase();
@@ -2068,7 +2097,7 @@ renderGroupements();
 renderGAList();
 renderStats();
 renderAbstStats();
-console.log("[carte circo 3 Aude] menu partis masque en mode abstention + inscrits par commune \u2014 si ce message s'affiche, le cache est \u00e0 jour.");
+console.log("[carte circo 3 Aude] membres actifs par GA + hab. par membre actif \u2014 si ce message s\'affiche, le cache est \u00e0 jour.");
 </script>
 </body>
 </html>
