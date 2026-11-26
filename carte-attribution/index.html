@@ -1161,6 +1161,10 @@ function renderGroupements() {
     const ins = inscritsSum(g.communes, "t2-24");
     const nUp = actions.filter(a => a.gid === g.id && a.date >= todayStr()).length;
     const habAct = (typeof g.ma === "number" && g.ma > 0) ? Math.round(pop / g.ma) : null;
+    const seedAP = GA_AP.find(a => normGAName(a.n) === normGAName(g.nom));
+    const maLien = seedAP && seedAP.u
+      ? ` <a class="maSrc" style="color:#FFFCF4;text-decoration:none" href="${seedAP.u}" target="_blank" rel="noopener" title="Voir la page du groupe sur actionpopulaire.fr (chiffre du jour)" onclick="event.stopPropagation()">\u2197</a>`
+      : "";
     const maTxt = typeof g.ma === "number"
       ? `${fmt(g.ma)} actif·es${habAct != null ? `<br>${fmt(habAct)} hab./actif` : ""}`
       : "actif·es ?";
@@ -1170,7 +1174,7 @@ function renderGroupements() {
         <span class="gname" style="color:#FFFCF4;cursor:default" title="Clic droit pour renommer">${escapeHtml(g.nom)}</span>
       </div>
       <div class="bi-sub">
-        <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.<br>${fmt(ins)} inscrit·es<br><span class="maEdit" style="cursor:pointer;text-decoration:underline dotted" title="Clic pour modifier le nombre de membres actifs">${maTxt}</span>${nUp ? `<br>🗓 ${nUp}` : ""}</span>
+        <span class="stats">${g.communes.length} c.<br>${fmt(pop)} hab.<br>${fmt(ins)} inscrit·es<br><span class="maEdit" style="cursor:pointer;text-decoration:underline dotted" title="Clic pour modifier le nombre de membres actifs">${maTxt}</span>${maLien}${nUp ? `<br>🗓 ${nUp}` : ""}</span>
         <button class="tgl" title="Afficher/masquer les communes">${expandedGroups.has(g.id) ? "Communes ▾" : "Communes ▸"}</button>
         <button class="pwr" title="${g.actif === false ? "Réactiver ce groupement" : "Désactiver (libère son territoire, sans supprimer)"}">${g.actif === false ? "▶" : "⏸"}</button>
         <button class="del rm" title="Supprimer le groupement">✕</button>
@@ -1473,18 +1477,18 @@ function dedupeColors() {
 
 // ma = membres actifs, releves sur actionpopulaire.fr (11/2025)
 const GA_AP = [
-  { n: "Limoux Causes Communes", c: "11206#0", ma: 8 },
-  { n: "Groupe d'action Limoux et environs", c: "11206#1", ma: 2 },
-  { n: "Résistance - Limoux", c: "11206#2", ma: 22 },
-  { n: "Insoumis chauriens", c: "11076", ma: 16 },
-  { n: "Groupe d'action de La Piège", c: "11291", ma: 3 },
-  { n: "Groupe action Saint Pierre Lagrasse", c: "11363", ma: 4 },
-  { n: "Groupe d'Action des Corbières occidentales", c: "11065", ma: 4 },
-  { n: "Sougraigne", c: "11381", ma: 8 },
-  { n: "Groupe d'action populaire de Bram", c: "11049", ma: 15 },
-  { n: "Montolieu Insoumise", c: "11253", ma: 15 },
-  { n: "HVA (Haute Vallée Audoise)", c: "11103", ma: 21 },
-  { n: "GA Insoumis du Quercorb", c: "11091", ma: 8 }
+  { n: "Limoux Causes Communes", u: "https://actionpopulaire.fr/groupes/c9b7b3eb-90aa-4fa4-94e2-347e00d02527/", c: "11206#0", ma: 8 },
+  { n: "Groupe d'action Limoux et environs", u: "https://actionpopulaire.fr/groupes/892287be-9883-4355-b935-53554e58bd83/", c: "11206#1", ma: 2 },
+  { n: "Résistance - Limoux", u: "https://actionpopulaire.fr/groupes/487da4c9-49b4-4605-bd09-fdac8a6bf7ba/", c: "11206#2", ma: 22 },
+  { n: "Insoumis chauriens", u: "https://actionpopulaire.fr/groupes/ef570aa9-cc8b-4253-a301-40647153968a/", c: "11076", ma: 16 },
+  { n: "Groupe d'action de La Piège", u: "https://actionpopulaire.fr/groupes/c55037ac-4552-4968-953a-fe63dfcca051/", c: "11291", ma: 3 },
+  { n: "Groupe action Saint Pierre Lagrasse", u: "https://actionpopulaire.fr/groupes/5ce99776-c9bf-4ad0-8760-a817993edb41/", c: "11363", ma: 4 },
+  { n: "Groupe d'Action des Corbières occidentales", u: "https://actionpopulaire.fr/groupes/548e85f6-5398-4cac-9a98-29d3c9b142a1/", c: "11065", ma: 4 },
+  { n: "Sougraigne", u: "https://actionpopulaire.fr/groupes/96e776f1-ffe4-442a-a0df-0882b8a4f7a8/", c: "11381", ma: 8 },
+  { n: "Groupe d'action populaire de Bram", u: "https://actionpopulaire.fr/groupes/5db923cf-069f-445b-869a-32bdf465634a/", c: "11049", ma: 15 },
+  { n: "Montolieu Insoumise", u: "https://actionpopulaire.fr/groupes/948482e0-ed83-4342-b4ef-18ec283ede75/", c: "11253", ma: 15 },
+  { n: "HVA (Haute Vallée Audoise)", u: "https://actionpopulaire.fr/groupes/15722688-bbc8-433e-917c-5da2b41e19dc/", c: "11103", ma: 21 },
+  { n: "GA Insoumis du Quercorb", u: "https://actionpopulaire.fr/groupes/38a8076b-b35c-4690-9842-aa1d8d973777/", c: "11091", ma: 8 }
 ];
 function mergeGAAP() {
   let added = 0, assigned = 0;
@@ -2097,7 +2101,7 @@ renderGroupements();
 renderGAList();
 renderStats();
 renderAbstStats();
-console.log("[carte circo 3 Aude] membres actifs par GA + hab. par membre actif \u2014 si ce message s\'affiche, le cache est \u00e0 jour.");
+console.log("[carte circo 3 Aude] membres actifs par GA + lien vers la page actionpopulaire.fr \u2014 si ce message s\'affiche, le cache est \u00e0 jour.");
 </script>
 </body>
 </html>
