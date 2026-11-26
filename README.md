@@ -1,8 +1,20 @@
-# Carte d'attribution des territoires — 3ᵉ circonscription de l'Aude
+# Projets LFI publics — 3ᵉ circonscription de l'Aude
 
-Carte interactive pour répartir les territoires d'action entre les groupements LFI de la 3ᵉ circonscription de l'Aude, avec agenda des actions.
+Dépôt public des éléments destinés à être partagés en ligne. Chaque projet
+vit dans son sous-dossier ; la page d'accueil les liste.
 
-**Adresse officielle : https://ednameterra.github.io/carte-circo3-aude/carte-attribution-circo3-aude.html**
+- `carte-attribution/` — Carte d'attribution des territoires
+
+Carte interactive pour répartir les territoires d'action entre les groupements
+LFI de la 3ᵉ circonscription de l'Aude, avec agenda des actions.
+
+**Adresse officielle : https://ednameterra.github.io/carte-circo3-aude/carte-attribution/**
+
+> Le dépôt va être renommé en `Projets-LFI-public` : après le renommage,
+> l'adresse officielle deviendra
+> `https://ednameterra.github.io/projets-lfi-public/carte-attribution/`
+> et cette ligne sera mise à jour. Les anciennes adresses continuent
+> de fonctionner par redirection automatique de GitHub.
 
 Fonctionne sur navigateur (ordinateur et téléphone), sans installation ni compte. Page unique autonome : Leaflet, contours communaux via geo.api.gouv.fr, fond de carte OpenStreetMap.
 
