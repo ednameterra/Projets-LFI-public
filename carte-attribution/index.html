@@ -137,8 +137,9 @@
     max-width: 280px; line-height: 1.35;
   }
   #hoverInfo .hi-name { font-weight: 700; }
-  #hoverInfo .hi-sub { font-size: 0.8rem; margin-top: 2px; display: flex; align-items: center; gap: 6px; }
-  #hoverInfo .hi-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; display: inline-block; border: 1px solid #21232055; }
+  #hoverInfo .hi-sub { font-size: 0.8rem; margin-top: 2px; }
+  #hoverInfo .hi-more { font-size: .72rem; color: #55554f; margin-top: 1px; }
+  #hoverInfo .hi-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #21232055; vertical-align: -1px; margin-right: 6px; }
   #abstLegend {
     position: absolute; z-index: 1000; bottom: 14px; right: 14px;
     background: #FFFCF4f5; border: 1px solid #4C0297; border-radius: 10px;
@@ -643,10 +644,10 @@ function abstentionLine(code) {
   const b = code.split("#")[0];
   const v = abstData()[b];
   const c = (ABST_COUNTS[abstRound] || {})[b];
-  const det = c ? ` — ${c[1].toLocaleString("fr-FR")} abstentions sur ${c[0].toLocaleString("fr-FR")} inscrit·es` : "";
+  const det = c ? `<div class="hi-more">${c[1].toLocaleString("fr-FR")} abstentions sur ${c[0].toLocaleString("fr-FR")} inscrit·es</div>` : "";
   return v == null
     ? `<div class="hi-sub">Abstention ${abstLabel()} : données indisponibles</div>`
-    : `<div class="hi-sub">Abstention ${abstLabel()} : <b>${v.toLocaleString("fr-FR")} %</b>${det}</div>`;
+    : `<div class="hi-sub">Abstention ${abstLabel()} : <b>${v.toLocaleString("fr-FR")} %</b></div>` + det;
 }
 function currentStyle(code) {
   if (abstentionMode || votesMode) {
